@@ -1,0 +1,6 @@
+*.bun-build
+.*.bun-build
+.codemem/
+.idea/
+.cursor/
+core/dist/

@@ -1,0 +1,26 @@
+{
+  "name": "codemem",
+  "version": "0.1.0",
+  "description": "gstack-inspired platform for recording, packaging, and installing development standards across projects.",
+  "type": "module",
+  "scripts": {
+    "build": "bash scripts/build.sh",
+    "build:cli": "bash scripts/build.sh",
+    "build:compiled-cli": "bun run scripts/build-cli.ts",
+    "gen:package-json": "bun run scripts/gen-package-json.ts",
+    "gen:bin": "bun run scripts/gen-bin.ts",
+    "gen:skill-docs": "bun run scripts/gen-skill-docs.ts",
+    "gen:readme": "bun run scripts/gen-readme.ts",
+    "test": "bun test",
+    "dev:init": "bun run core/src/cli/init.ts",
+    "dev:capture": "bun run core/src/cli/capture.ts",
+    "dev:build": "bun run core/src/cli/build.ts",
+    "dev:package": "bun run core/src/cli/package.ts",
+    "dev:install": "bun run core/src/cli/install.ts",
+    "dev:agent": "bun run core/src/cli/agent.ts",
+    "dev:projects": "bun run core/src/cli/projects.ts"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}

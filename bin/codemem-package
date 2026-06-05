@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+cd "$ROOT"
+if [ -x "$ROOT/core/dist/codemem-package" ]; then
+  "$ROOT/core/dist/codemem-package" "$@" --root "$ROOT"
+else
+  bun run core/src/cli/package.ts "$@" --root "$ROOT"
+fi

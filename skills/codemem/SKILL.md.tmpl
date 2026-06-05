@@ -1,0 +1,97 @@
+---
+name: dev-standards
+description: |
+  Record development standards during implementation, generate global and
+  project-specific standards, track which projects installed the shared
+  standard, and distribute the standard as a shareable install package.
+---
+
+## Purpose
+
+Use this skill to turn development conventions into reusable project assets:
+
+- Shared global standard documents
+- Project-specific standard documents
+- Conflict reports
+- Project installation registry
+- Shareable install packages
+
+## Commands
+
+{{COMMANDS}}
+
+## Workflow
+
+### Step 1: Initialize a project
+
+```bash
+{{INIT_COMMAND}}
+```
+
+State created:
+
+{{STATE_FILES}}
+
+### Step 2: Capture standards during development
+
+```bash
+{{CAPTURE_COMMAND}}
+```
+
+Guidelines:
+
+- Keep each captured rule imperative and verifiable.
+- Use one capture per rule.
+- Promote only stable cross-project rules into `scope=global`.
+
+### Step 3: Build documents
+
+```bash
+{{BUILD_COMMAND}}
+```
+
+Outputs:
+
+{{BUILD_OUTPUTS}}
+
+### Step 4: Package the shared standard
+
+```bash
+{{PACKAGE_COMMAND}}
+```
+
+Outputs:
+
+{{PACKAGE_OUTPUTS}}
+
+### Step 5: Install a shared package into another project
+
+```bash
+{{INSTALL_COMMAND}}
+```
+
+Install policy:
+
+{{INSTALL_POLICY}}
+
+### Step 6: Inspect configured projects
+
+```bash
+{{PROJECTS_COMMAND}}
+```
+
+## Runtime Layout
+
+{{RUNTIME_LAYOUT}}
+
+## Argument reference
+
+{{ARGUMENT_REFERENCE}}
+
+## Notes
+
+- Runtime code lives in `core/src/`.
+- Templates live in `skills/codemem/templates/`.
+- State and artifacts live in `.codemem/`.
+- Shareable packages declare compatibility metadata such as manifest schema,
+  installer schema, tool version, and minimum Node.js runtime.

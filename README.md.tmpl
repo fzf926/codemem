@@ -1,0 +1,41 @@
+# codemem
+
+`codemem` 是一个参考 gstack 组织方式构建的仓库，用来沉淀开发规范、生成可复用的项目文档、打包共享规范，并把规范安装到其他项目中。
+
+## 目录结构
+
+- `core/src/`：运行时实现
+- `core/dist/`：编译后的 CLI 二进制
+- `bin/`：轻量命令入口
+- `skills/codemem/`：skill 提示词与模板
+- `.codemem/`：生成的状态、日志、注册表与安装包产物
+
+## 常用命令
+
+{{README_COMMANDS}}
+
+推荐优先使用 `codemem-agent install` 给指定 code agent 安装集成。未传 `--skill-dir` 时，安装器会先自动探测常见 agent 安装位置；在交互式终端里如果探测到非默认目录，还会先让你确认；之后再在项目开发过程中让 AI 负责初始化、记录规范和建议更新文档。
+
+## 更多命令说明
+
+完整命令参考请见 [docs/COMMANDS.md](docs/COMMANDS.md)。
+
+## 完整安装与使用流程
+
+给其他团队或项目使用时，推荐直接阅读 [docs/INSTALL.md](docs/INSTALL.md)。
+
+## 安装策略
+
+{{INSTALL_POLICY}}
+
+## 安装包兼容性
+
+{{PACKAGE_COMPATIBILITY}}
+
+## 构建
+
+```bash
+bash scripts/build.sh
+```
+
+构建完成后，`bin/*` 会优先使用 `core/dist/` 下的编译产物；在开发态找不到编译产物时，会自动回退到 `bun run`。
