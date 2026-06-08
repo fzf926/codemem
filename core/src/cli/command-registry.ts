@@ -7,7 +7,7 @@ export interface CommandArgSpec {
 }
 
 export interface CommandSpec {
-  id: "init" | "capture" | "build" | "package" | "install" | "projects" | "agent";
+  id: "init" | "capture" | "build" | "package" | "install" | "projects" | "agent" | "upgrade";
   binName: string;
   devScript: string;
   summary: string;
@@ -291,6 +291,50 @@ export const commandSpecs: CommandSpec[] = [
       "Claude Code: auto-detect existing <project>/.claude/commands/ or ~/.claude/commands/ before falling back",
       ".codemem/_system/packages/agents/<package-name>-<version>/",
       ".codemem/_system/packages/agents/<package-name>-<version>.tgz",
+    ],
+  },
+  {
+    id: "upgrade",
+    binName: "codemem-upgrade",
+    devScript: "dev:upgrade",
+    summary: "rebuild codemem and reinstall the latest shared agent resources",
+    example: [
+      "./bin/codemem-upgrade --agent cursor --target-dir <project_dir>",
+      "./bin/codemem-upgrade --agent codex --target-dir <project_dir> --pull true",
+    ],
+    args: [
+      {
+        name: "--agent",
+        description: "target code agent whose shared integration should be refreshed",
+        required: true,
+        values: ["codex", "cursor", "claude-code"],
+      },
+      {
+        name: "--target-dir",
+        description: "project directory used as the working project context during reinstall",
+        defaultValue: "current working directory",
+      },
+      {
+        name: "--skill-dir",
+        description: "override the integration install directory for the selected agent",
+      },
+      {
+        name: "--lang",
+        description: "language used in regenerated prompts and guidance",
+        defaultValue: "zh",
+        values: ["zh", "en"],
+      },
+      {
+        name: "--pull",
+        description: "run git pull --ff-only before rebuilding and reinstalling",
+        defaultValue: "false",
+        values: ["true", "false"],
+      },
+    ],
+    outputs: [
+      "~/.codex/skills/codemem/SKILL.md",
+      "~/.codex/skills/codemem/runtime/bin/",
+      "~/.codex/skills/codemem/templates/",
     ],
   },
   {

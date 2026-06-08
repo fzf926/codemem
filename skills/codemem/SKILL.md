@@ -24,6 +24,7 @@ Use this skill to turn development conventions into reusable project assets:
 - `./bin/codemem-package` - build a shareable package directory and .tgz
 - `./bin/codemem-install` - install a shared package into another project
 - `./bin/codemem-agent` - install or export agent-specific codemem integrations
+- `./bin/codemem-upgrade` - rebuild codemem and reinstall the latest shared agent resources
 - `./bin/codemem-projects` - list configured projects
 
 ## Workflow
@@ -181,6 +182,16 @@ Install policy:
 | `--package-name` | Optional | `codemem-agent-kit` | - | exported package base name |
 | `--lang` | Optional | `zh` | `zh`, `en` | language used in generated prompts and guidance |
 | `--json` | Optional | `false` | `true`, `false` | print machine-readable output for install, detect, or export |
+
+### `codemem-upgrade`
+
+| Argument | Required | Default | Allowed values | Description |
+| --- | --- | --- | --- | --- |
+| `--agent` | Required | - | `codex`, `cursor`, `claude-code` | target code agent whose shared integration should be refreshed |
+| `--target-dir` | Optional | `current working directory` | - | project directory used as the working project context during reinstall |
+| `--skill-dir` | Optional | - | - | override the integration install directory for the selected agent |
+| `--lang` | Optional | `zh` | `zh`, `en` | language used in regenerated prompts and guidance |
+| `--pull` | Optional | `false` | `true`, `false` | run git pull --ff-only before rebuilding and reinstalling |
 
 ### `codemem-projects`
 

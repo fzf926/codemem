@@ -164,6 +164,31 @@ Outputs:
 - `.codemem/_system/packages/agents/<package-name>-<version>/`
 - `.codemem/_system/packages/agents/<package-name>-<version>.tgz`
 
+## `codemem-upgrade`
+
+rebuild codemem and reinstall the latest shared agent resources
+
+```bash
+./bin/codemem-upgrade --agent cursor --target-dir <project_dir>
+./bin/codemem-upgrade --agent codex --target-dir <project_dir> --pull true
+```
+
+Arguments:
+
+| Argument | Required | Default | Allowed values | Description |
+| --- | --- | --- | --- | --- |
+| `--agent` | Required | - | `codex`, `cursor`, `claude-code` | target code agent whose shared integration should be refreshed |
+| `--target-dir` | Optional | `current working directory` | - | project directory used as the working project context during reinstall |
+| `--skill-dir` | Optional | - | - | override the integration install directory for the selected agent |
+| `--lang` | Optional | `zh` | `zh`, `en` | language used in regenerated prompts and guidance |
+| `--pull` | Optional | `false` | `true`, `false` | run git pull --ff-only before rebuilding and reinstalling |
+
+Outputs:
+
+- `~/.codex/skills/codemem/SKILL.md`
+- `~/.codex/skills/codemem/runtime/bin/`
+- `~/.codex/skills/codemem/templates/`
+
 ## `codemem-projects`
 
 list configured projects

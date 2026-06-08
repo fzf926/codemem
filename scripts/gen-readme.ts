@@ -12,7 +12,7 @@ const root = process.cwd();
 
 function renderReadmeCommands(): string {
   const examples = commandSpecs
-    .filter((spec) => ["agent", "capture", "build", "package", "projects"].includes(spec.id))
+    .filter((spec) => ["agent", "upgrade", "capture", "build", "package", "projects"].includes(spec.id))
     .map((spec) => formatExample(spec.example))
     .join("\n");
   return `\`\`\`bash\n${examples}\n\`\`\``;

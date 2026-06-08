@@ -1,7 +1,9 @@
 import { resolve } from "node:path";
+import type { AgentId } from "../agent/service";
 import { buildPackage } from "../packaging/service";
 import { installPackage } from "../installer/service";
 import { formatProjectsTable, listProjects } from "../registry/service";
+import { run } from "../shared/process";
 import { buildStandards, captureRule, initProject } from "../standards/service";
 import type { CommandSpec } from "./command-registry";
 import { loadCommandArgs } from "./runtime";
@@ -96,6 +98,52 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
   },
   agent() {
     throw new Error("codemem-agent uses its own entrypoint. Run ./bin/codemem-agent instead.");
+  },
+  upgrade({ args, rootDir }) {
+    const agent = args.get("agent")! as AgentId;
+    const targetDir = resolve(args.get("target-dir") || process.cwd());
+    const lang = args.get("lang")!;
+    const pull = args.get("pull") === "true";
+    const skillDir = args.get("skill-dir") ? resolve(args.get("skill-dir")!) : undefined;
+
+    if (pull) {
+      run("git", ["pull", "--ff-only"], { cwd: rootDir });
+    }
+
+    run("bash", ["scripts/build.sh"], { cwd: rootDir });
+
+    const result = Bun.spawnSync({
+      cmd: [
+        "bun",
+        "run",
+        "core/src/cli/agent.ts",
+        "--root",
+        rootDir,
+        "install",
+        "--agent",
+        agent,
+        "--target-dir",
+        targetDir,
+        "--lang",
+        lang,
+        ...(skillDir ? ["--skill-dir", skillDir] : []),
+      ],
+      cwd: rootDir,
+      stdout: "pipe",
+      stderr: "inherit",
+      env: process.env,
+    });
+
+    if (result.exitCode !== 0) {
+      throw new Error("codemem-upgrade failed while reinstalling agent resources.");
+    }
+
+    console.log("Updated codemem global resources");
+    console.log(`Agent: ${agent}`);
+    if (pull) {
+      console.log("Git: pulled latest changes with --ff-only");
+    }
+    process.stdout.write(result.stdout.toString());
   },
   projects({ args, rootDir }) {
     if (args.get("json") === "true") {

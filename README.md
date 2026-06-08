@@ -47,6 +47,8 @@ flowchart TD
 ./bin/codemem-agent install --agent codex --target-dir <project_dir>
 ./bin/codemem-agent detect --agent codex --target-dir <project_dir>
 ./bin/codemem-agent export --agent all --target-dir <output_dir>
+./bin/codemem-upgrade --agent cursor --target-dir <project_dir>
+./bin/codemem-upgrade --agent codex --target-dir <project_dir> --pull true
 ./bin/codemem-projects
 ```
 
