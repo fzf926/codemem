@@ -11,7 +11,7 @@ import {
 import { homedir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { getAgentPackagesDir, getRuntimeDir } from "../shared/paths";
+import { getAgentPackagesDir } from "../shared/paths";
 import { run, runTar } from "../shared/process";
 import { nowIso } from "../shared/time";
 import { sha256File } from "../shared/hash";
@@ -138,23 +138,15 @@ function toPosixPath(path: string): string {
   return path.replaceAll("\\", "/");
 }
 
-function getRuntimeBinDir(targetDir: string): string {
-  return join(getRuntimeDir(targetDir), "agent-runtime", "bin");
-}
-
-function getInstalledTemplatesDir(targetDir: string): string {
-  return join(targetDir, "skills", "codemem", "templates");
-}
-
 function getDefaultHomeSkillDir(): string {
   return join(getHomeDir(), ".codex", "skills", AGENT_SKILL_NAME);
 }
 
-function getCursorSkillRuntimeBinDir(skillDir: string): string {
+function getSharedRuntimeBinDir(skillDir: string): string {
   return join(skillDir, "runtime", "bin");
 }
 
-function getCursorSkillTemplatesDir(skillDir: string): string {
+function getSharedTemplatesDir(skillDir: string): string {
   return join(skillDir, "templates");
 }
 
@@ -185,31 +177,11 @@ function ensureCompiledRuntime(rootDir: string): void {
   run("bun", ["run", "scripts/build-cli.ts"], { cwd: rootDir });
 }
 
-function installRuntimeBundle(rootDir: string, targetDir: string): { runtimeBinDir: string; templatesDir: string } {
+function installSharedSkillBundle(rootDir: string, skillDir: string): { runtimeBinDir: string; templatesDir: string } {
   ensureCompiledRuntime(rootDir);
 
-  const runtimeBinDir = getRuntimeBinDir(targetDir);
-  const templatesDir = getInstalledTemplatesDir(targetDir);
-  const sourceTemplatesDir = join(rootDir, "skills", "codemem", "templates");
-  const distDir = join(rootDir, "core", "dist");
-
-  mkdirSync(runtimeBinDir, { recursive: true });
-  mkdirSync(templatesDir, { recursive: true });
-
-  for (const binary of RUNTIME_BINARIES) {
-    copyFileSync(join(distDir, binary), join(runtimeBinDir, binary));
-  }
-
-  copyDir(sourceTemplatesDir, templatesDir);
-
-  return { runtimeBinDir, templatesDir };
-}
-
-function installCursorSkillBundle(rootDir: string, skillDir: string): { runtimeBinDir: string; templatesDir: string } {
-  ensureCompiledRuntime(rootDir);
-
-  const runtimeBinDir = getCursorSkillRuntimeBinDir(skillDir);
-  const templatesDir = getCursorSkillTemplatesDir(skillDir);
+  const runtimeBinDir = getSharedRuntimeBinDir(skillDir);
+  const templatesDir = getSharedTemplatesDir(skillDir);
   const sourceTemplatesDir = join(rootDir, "skills", "codemem", "templates");
   const distDir = join(rootDir, "core", "dist");
 
@@ -230,37 +202,39 @@ function relativeFromProject(targetDir: string, absolutePath: string): string {
   return toPosixPath(path.startsWith(".") ? path : `./${path}`);
 }
 
-function renderSharedWorkflow(input: { runtimeBinDir: string; targetDir: string; lang: string }): string {
-  const initCommand = `${relativeFromProject(input.targetDir, join(input.runtimeBinDir, "codemem-init"))}`;
-  const captureCommand = `${relativeFromProject(input.targetDir, join(input.runtimeBinDir, "codemem-capture"))}`;
-  const buildCommand = `${relativeFromProject(input.targetDir, join(input.runtimeBinDir, "codemem-build"))}`;
+function renderSharedWorkflow(input: { runtimeBinDir: string; templatesDir: string; lang: string }): string {
+  const initCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.templatesDir)}" ${toPosixPath(join(input.runtimeBinDir, "codemem-init"))}`;
+  const captureCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.templatesDir)}" ${toPosixPath(join(input.runtimeBinDir, "codemem-capture"))}`;
+  const buildCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.templatesDir)}" ${toPosixPath(join(input.runtimeBinDir, "codemem-build"))}`;
 
   if (input.lang === "en") {
     return [
       "When this workflow is invoked:",
-      "1. Check whether the current project already has `.codemem/` state and `skills/codemem/templates/`.",
-      "2. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
-      "3. If project-name confidence is low, ask one concise question; otherwise initialize automatically.",
-      `4. Use \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` to initialize.`,
-      "5. Capture stable development conventions as separate rules when the user or the codebase reveals them.",
-      `6. Use \`${captureCommand} --root <project_root> ...\` to append one rule at a time.`,
-      "7. Do not rebuild standards docs silently. If rules changed materially, recommend regeneration first.",
-      `8. Only after user confirmation, run \`${buildCommand} --root <project_root> --project <name> --lang en\`.`,
-      "9. If the user explicitly asks to regenerate the docs, do it immediately.",
+      "1. Check whether the current project already has `.codemem/` state.",
+      "2. Use the globally shared codemem runtime and templates installed with this skill.",
+      "3. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
+      "4. If project-name confidence is low, ask one concise question; otherwise initialize automatically.",
+      `5. Use \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` to initialize.`,
+      "6. Capture stable development conventions as separate rules when the user or the codebase reveals them.",
+      `7. Use \`${captureCommand} --root <project_root> ...\` to append one rule at a time.`,
+      "8. Do not rebuild standards docs silently. If rules changed materially, recommend regeneration first.",
+      `9. Only after user confirmation, run \`${buildCommand} --root <project_root> --project <name> --lang en\`.`,
+      "10. If the user explicitly asks to regenerate the docs, do it immediately.",
     ].join("\n");
   }
 
   return [
     "当这个工作流被调用时：",
-    "1. 先检查当前项目是否已经存在 `.codemem/` 状态目录，以及 `skills/codemem/templates/` 模板目录。",
-    "2. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
-    "3. 如果对项目名判断不够稳，再只问一个简短确认问题；否则直接初始化。",
-    `4. 使用 \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` 完成初始化。`,
-    "5. 在开发过程中，当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。",
-    `6. 使用 \`${captureCommand} --root <project_root> ...\` 逐条追加规范。`,
-    "7. 不要静默重建规范文档；如果发现规范有明显新增、冲突或状态变化，应先提出更新建议。",
-    `8. 只有在用户确认后，再执行 \`${buildCommand} --root <project_root> --project <name> --lang zh\`。`,
-    "9. 如果用户明确要求“重新生成规范文档”，则直接执行生成。",
+    "1. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
+    "2. 使用当前 skill 安装时自带的全局共享 runtime 和模板。",
+    "3. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
+    "4. 如果对项目名判断不够稳，再只问一个简短确认问题；否则直接初始化。",
+    `5. 使用 \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` 完成初始化。`,
+    "6. 在开发过程中，当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。",
+    `7. 使用 \`${captureCommand} --root <project_root> ...\` 逐条追加规范。`,
+    "8. 不要静默重建规范文档；如果发现规范有明显新增、冲突或状态变化，应先提出更新建议。",
+    `9. 只有在用户确认后，再执行 \`${buildCommand} --root <project_root> --project <name> --lang zh\`。`,
+    "10. 如果用户明确要求“重新生成规范文档”，则直接执行生成。",
   ].join("\n");
 }
 
@@ -269,47 +243,38 @@ function renderCursorWorkflow(input: {
   globalRuntimeBinDir: string;
   globalTemplatesDir: string;
 }): string {
-  const mkdirCommand = "mkdir -p .codemem/_system/runtime/agent-runtime/bin skills/codemem/templates";
-  const runtimeCopyCommand = `cp -R "${toPosixPath(input.globalRuntimeBinDir)}/." ".codemem/_system/runtime/agent-runtime/bin/"`;
-  const templateCopyCommand = `cp -R "${toPosixPath(input.globalTemplatesDir)}/." "skills/codemem/templates/"`;
-  const initCommand = `.codemem/_system/runtime/agent-runtime/bin/codemem-init --root <project_root> --project <name> --owner <owner> --project-path <project_root>`;
-  const captureCommand = `.codemem/_system/runtime/agent-runtime/bin/codemem-capture --root <project_root> ...`;
-  const buildCommand = `.codemem/_system/runtime/agent-runtime/bin/codemem-build --root <project_root> --project <name> --lang ${input.lang === "en" ? "en" : "zh"}`;
+  const initCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.globalTemplatesDir)}" ${toPosixPath(join(input.globalRuntimeBinDir, "codemem-init"))} --root <project_root> --project <name> --owner <owner> --project-path <project_root>`;
+  const captureCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.globalTemplatesDir)}" ${toPosixPath(join(input.globalRuntimeBinDir, "codemem-capture"))} --root <project_root> ...`;
+  const buildCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.globalTemplatesDir)}" ${toPosixPath(join(input.globalRuntimeBinDir, "codemem-build"))} --root <project_root> --project <name> --lang ${input.lang === "en" ? "en" : "zh"}`;
 
   if (input.lang === "en") {
     return [
       "When this workflow is invoked:",
-      "1. Check whether the current project already has `.codemem/` state and `skills/codemem/templates/`.",
-      "2. If project runtime or templates are missing, bootstrap them from this global skill before initialization.",
-      `3. Run \`${mkdirCommand}\`.`,
-      `4. Run \`${runtimeCopyCommand}\`.`,
-      `5. Run \`${templateCopyCommand}\`.`,
-      "6. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
-      "7. If project-name confidence is low, ask one concise question; otherwise initialize automatically.",
-      `8. Use \`${initCommand}\` to initialize.`,
-      "9. Capture stable development conventions as separate rules when the user or the codebase reveals them.",
-      `10. Use \`${captureCommand}\` to append one rule at a time.`,
-      "11. Do not rebuild standards docs silently. If rules changed materially, recommend regeneration first.",
-      `12. Only after user confirmation, run \`${buildCommand}\`.`,
-      "13. If the user explicitly asks to regenerate the docs, do it immediately.",
+      "1. Check whether the current project already has `.codemem/` state.",
+      "2. Use the globally shared runtime and templates bundled with this skill.",
+      "3. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
+      "4. If project-name confidence is low, ask one concise question; otherwise initialize automatically.",
+      `5. Use \`${initCommand}\` to initialize.`,
+      "6. Capture stable development conventions as separate rules when the user or the codebase reveals them.",
+      `7. Use \`${captureCommand}\` to append one rule at a time.`,
+      "8. Do not rebuild standards docs silently. If rules changed materially, recommend regeneration first.",
+      `9. Only after user confirmation, run \`${buildCommand}\`.`,
+      "10. If the user explicitly asks to regenerate the docs, do it immediately.",
     ].join("\n");
   }
 
   return [
     "当这个工作流被调用时：",
-    "1. 先检查当前项目是否已经存在 `.codemem/` 状态目录，以及 `skills/codemem/templates/` 模板目录。",
-    "2. 如果项目 runtime 或模板缺失，先从这个全局 skill 自举到当前项目，再继续初始化。",
-    `3. 执行 \`${mkdirCommand}\`。`,
-    `4. 执行 \`${runtimeCopyCommand}\`。`,
-    `5. 执行 \`${templateCopyCommand}\`。`,
-    "6. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
-    "7. 如果对项目名判断不够稳，再只问一个简短确认问题；否则直接初始化。",
-    `8. 使用 \`${initCommand}\` 完成初始化。`,
-    "9. 在开发过程中，当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。",
-    `10. 使用 \`${captureCommand}\` 逐条追加规范。`,
-    "11. 不要静默重建规范文档；如果发现规范有明显新增、冲突或状态变化，应先提出更新建议。",
-    `12. 只有在用户确认后，再执行 \`${buildCommand}\`。`,
-    "13. 如果用户明确要求“重新生成规范文档”，则直接执行生成。",
+    "1. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
+    "2. 使用当前 skill 自带的全局共享 runtime 和模板。",
+    "3. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
+    "4. 如果对项目名判断不够稳，再只问一个简短确认问题；否则直接初始化。",
+    `5. 使用 \`${initCommand}\` 完成初始化。`,
+    "6. 在开发过程中，当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。",
+    `7. 使用 \`${captureCommand}\` 逐条追加规范。`,
+    "8. 不要静默重建规范文档；如果发现规范有明显新增、冲突或状态变化，应先提出更新建议。",
+    `9. 只有在用户确认后，再执行 \`${buildCommand}\`。`,
+    "10. 如果用户明确要求“重新生成规范文档”，则直接执行生成。",
   ].join("\n");
 }
 
@@ -326,8 +291,12 @@ const agentSpecs: AgentTargetSpec[] = [
     integrationPath(_targetDir, skillDir) {
       return join(skillDir || getDefaultHomeSkillDir(), "SKILL.md");
     },
-    renderIntegration({ runtimeBinDir, targetDir, lang }) {
-      const workflow = renderSharedWorkflow({ runtimeBinDir, targetDir, lang });
+    renderIntegration({ runtimeBinDir, skillDir, lang }) {
+      const workflow = renderSharedWorkflow({
+        runtimeBinDir,
+        templatesDir: getSharedTemplatesDir(skillDir),
+        lang,
+      });
       const description = lang === "en"
         ? "Use when the user wants the agent to initialize codemem for the current project, capture development standards, or regenerate standards docs after confirmation."
         : "当用户希望 agent 为当前项目初始化 codemem、记录开发规范、或在确认后重新生成规范文档时使用。";
@@ -379,11 +348,11 @@ const agentSpecs: AgentTargetSpec[] = [
     integrationPath(_targetDir, skillDir) {
       return join(skillDir || getDefaultHomeSkillDir(), "SKILL.md");
     },
-    renderIntegration({ runtimeBinDir, targetDir, skillDir, lang }) {
+    renderIntegration({ runtimeBinDir, skillDir, lang }) {
       const workflow = renderCursorWorkflow({
         lang,
         globalRuntimeBinDir: runtimeBinDir,
-        globalTemplatesDir: getCursorSkillTemplatesDir(skillDir),
+        globalTemplatesDir: getSharedTemplatesDir(skillDir),
       });
       const installDir = toPosixPath(skillDir);
 
@@ -395,7 +364,7 @@ const agentSpecs: AgentTargetSpec[] = [
         ? [
           `# ${title}`,
           "",
-          `This skill is installed in \`${installDir}\` and carries its own runtime and templates for bootstrapping new projects.`,
+          `This skill is installed in \`${installDir}\` and provides globally shared runtime and templates for every project.`,
           "",
           workflow,
           "",
@@ -408,7 +377,7 @@ const agentSpecs: AgentTargetSpec[] = [
         : [
           `# ${title}`,
           "",
-          `这个 skill 安装在 \`${installDir}\`，自带 runtime 和模板，用来为新项目完成自举。`,
+          `这个 skill 安装在 \`${installDir}\`，提供全局共享的 runtime 和模板，供所有项目共用。`,
           "",
           workflow,
           "",
@@ -449,16 +418,20 @@ const agentSpecs: AgentTargetSpec[] = [
       return join(skillDir || join(targetDir, ".claude", "commands"), CLAUDE_COMMAND_FILE);
     },
     renderIntegration({ runtimeBinDir, targetDir, skillDir, lang }) {
-      const workflow = renderSharedWorkflow({ runtimeBinDir, targetDir, lang });
-      const relRuntime = relativeFromProject(targetDir, runtimeBinDir);
+      const workflow = renderSharedWorkflow({
+        runtimeBinDir,
+        templatesDir: getSharedTemplatesDir(getDefaultHomeSkillDir()),
+        lang,
+      });
+      const relRuntime = toPosixPath(runtimeBinDir);
       const installDir = relativeFromProject(targetDir, dirname(join(skillDir, CLAUDE_COMMAND_FILE)));
 
       return [
         "# /codemem",
         "",
         lang === "en"
-          ? `This command is installed in \`${installDir}\` and uses the project runtime in \`${relRuntime}\`.`
-          : `这个命令安装在 \`${installDir}\`，使用项目中的 \`${relRuntime}\` runtime。`,
+          ? `This command is installed in \`${installDir}\` and uses the shared global runtime in \`${relRuntime}\`.`
+          : `这个命令安装在 \`${installDir}\`，使用全局共享的 \`${relRuntime}\` runtime。`,
         "",
         workflow,
       ].join("\n");
@@ -605,10 +578,8 @@ export async function installAgent(options: InstallAgentOptions): Promise<Instal
   const spec = getAgentSpec(agent);
   const targetDir = resolve(options.targetDir);
   const skillDir = await resolveSkillDirForInstall(spec, targetDir, options.skillDir, options.confirmDetectedSkillDir);
-
-  const bundle = agent === "cursor"
-    ? installCursorSkillBundle(options.rootDir, skillDir)
-    : installRuntimeBundle(options.rootDir, targetDir);
+  const sharedSkillDir = agent === "claude-code" ? getDefaultHomeSkillDir() : skillDir;
+  const bundle = installSharedSkillBundle(options.rootDir, sharedSkillDir);
   const { runtimeBinDir, templatesDir } = bundle;
   const integrationPath = installIntegration(spec, options.rootDir, targetDir, skillDir, runtimeBinDir, options.lang);
 
@@ -635,12 +606,13 @@ export function detectAgentInstallations(options: {
     const skillDir = options.skillDir
       ? resolve(options.skillDir)
       : resolveSkillDir(spec, targetDir);
+    const sharedSkillDir = spec.id === "claude-code" ? getDefaultHomeSkillDir() : skillDir;
     const selectionReason = options.skillDir
       ? "explicit_override"
       : detected.selectionReason;
     const integrationPath = spec.integrationPath(targetDir, skillDir);
-    const runtimeBinDir = spec.id === "cursor" ? getCursorSkillRuntimeBinDir(skillDir) : getRuntimeBinDir(targetDir);
-    const templatesDir = spec.id === "cursor" ? getCursorSkillTemplatesDir(skillDir) : getInstalledTemplatesDir(targetDir);
+    const runtimeBinDir = getSharedRuntimeBinDir(sharedSkillDir);
+    const templatesDir = getSharedTemplatesDir(sharedSkillDir);
     const configured = existsSync(integrationPath) && existsSync(runtimeBinDir) && existsSync(templatesDir);
 
     return {
@@ -740,6 +712,13 @@ function resolveSkillDir(agent, targetDir, explicitSkillDir) {
   return resolve(detected || spec.defaultSkillDir(targetDir));
 }
 
+function getSharedSkillDir(agent, resolvedSkillDir) {
+  if (agent === "claude-code") {
+    return join(getHomeDir(), ".codex", "skills", "codemem");
+  }
+  return resolvedSkillDir;
+}
+
 function copyDir(source, destination) {
   mkdirSync(destination, { recursive: true });
   for (const entry of readdirSync(source)) {
@@ -793,12 +772,13 @@ if (!AGENTS[agent]) {
 
 const targetDir = resolve(args.get("target-dir") || process.cwd());
 const skillDir = resolveSkillDir(agent, targetDir, args.get("skill-dir"));
+const sharedSkillDir = getSharedSkillDir(agent, skillDir);
 const runtimeSource = join(scriptDir, "runtime");
 const templatesSource = join(runtimeSource, "templates");
 const binSource = join(runtimeSource, "bin");
 const integrationSource = join(scriptDir, "integrations", agent);
-const runtimeTarget = join(targetDir, ".codemem", "_system", "runtime", "agent-runtime", "bin");
-const templatesTarget = join(targetDir, "skills", "codemem", "templates");
+const runtimeTarget = join(sharedSkillDir, "runtime", "bin");
+const templatesTarget = join(sharedSkillDir, "templates");
 
 copyDir(binSource, runtimeTarget);
 copyDir(templatesSource, templatesTarget);
@@ -821,7 +801,7 @@ if (agent === "codex" || agent === "cursor") {
 
 console.log("Installed ${options.packageName}@${options.version}");
 console.log("Agent: " + agent);
-console.log("Project runtime: " + runtimeTarget);
+console.log("Shared runtime: " + runtimeTarget);
 console.log("Templates: " + templatesTarget);
 console.log("Integration: " + destination);
 `;
@@ -863,29 +843,13 @@ export function exportAgentPackage(options: ExportAgentPackageOptions): ExportAg
     const skillDir = spec.defaultSkillDir(targetDir);
     const integrationDir = join(integrationsDir, spec.id);
     mkdirSync(integrationDir, { recursive: true });
-    let renderedRuntimeBinDir = join(targetDir, ".codemem", "_system", "runtime", "agent-runtime", "bin");
-
-    if (spec.id === "cursor") {
-      const packagedRuntimeBinDir = join(integrationDir, "runtime", "bin");
-      const packagedTemplatesDir = join(integrationDir, "templates");
-      mkdirSync(packagedRuntimeBinDir, { recursive: true });
-      mkdirSync(packagedTemplatesDir, { recursive: true });
-
-      for (const binary of RUNTIME_BINARIES) {
-        copyFileSync(join(rootDir, "core", "dist", binary), join(packagedRuntimeBinDir, binary));
-      }
-
-      copyDir(join(rootDir, "skills", "codemem", "templates"), packagedTemplatesDir);
-      renderedRuntimeBinDir = packagedRuntimeBinDir;
-    }
-
     const fileName = basename(spec.integrationPath(targetDir, skillDir));
     writeFileSync(
       join(integrationDir, fileName),
       `${spec.renderIntegration({
-        runtimeBinDir: renderedRuntimeBinDir,
+        runtimeBinDir: join(skillDir, "runtime", "bin"),
         targetDir,
-        skillDir: spec.id === "cursor" ? integrationDir : skillDir,
+        skillDir,
         lang: options.lang,
       })}\n`,
     );

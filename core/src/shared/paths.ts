@@ -1,4 +1,5 @@
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 export function getStateDir(rootDir: string): string {
   return join(rootDir, ".codemem");
@@ -73,5 +74,20 @@ export function getStandardsConflictsFile(rootDir: string): string {
 }
 
 export function getTemplatesDir(rootDir: string): string {
-  return join(rootDir, "skills", "codemem", "templates");
+  const explicit = process.env.CODEMEM_TEMPLATES_DIR;
+  if (explicit) {
+    return explicit;
+  }
+
+  const local = join(rootDir, "skills", "codemem", "templates");
+  if (existsSync(local)) {
+    return local;
+  }
+
+  const execTemplates = resolve(dirname(process.execPath), "..", "templates");
+  if (existsSync(execTemplates)) {
+    return execTemplates;
+  }
+
+  return local;
 }

@@ -156,8 +156,8 @@ Arguments:
 
 Outputs:
 
-- `<project>/.codemem/_system/runtime/agent-runtime/bin/`
-- `<project>/skills/codemem/templates/`
+- `~/.codex/skills/codemem/runtime/bin/`
+- `~/.codex/skills/codemem/templates/`
 - `Codex: auto-detect ~/.codex/skills/codemem/SKILL.md`
 - `Cursor: ~/.codex/skills/codemem/SKILL.md`
 - `Claude Code: auto-detect existing <project>/.claude/commands/ or ~/.claude/commands/ before falling back`

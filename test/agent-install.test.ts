@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { exportAgentPackage, installAgent } from "../core/src/agent/service";
 
 describe("agent install and export", () => {
-  test("installs a Cursor skill into ~/.codex/skills and project runtime", async () => {
+  test("installs a Cursor skill into ~/.codex/skills without copying runtime into the project", async () => {
     const root = process.cwd();
     const homeDir = mkdtempSync(join(tmpdir(), "codemem-agent-cursor-home-"));
     const targetDir = mkdtempSync(join(tmpdir(), "codemem-agent-cursor-"));
@@ -23,8 +23,8 @@ describe("agent install and export", () => {
       });
 
       expect(result.agent).toBe("cursor");
-      expect(existsSync(join(targetDir, ".codemem", "agent-runtime", "bin", "codemem-init"))).toBe(false);
-      expect(existsSync(join(targetDir, "skills", "dev-standards", "templates", "project-standard.zh.template.md"))).toBe(false);
+      expect(existsSync(join(targetDir, ".codemem", "_system", "runtime", "agent-runtime", "bin", "codemem-init"))).toBe(false);
+      expect(existsSync(join(targetDir, "skills", "codemem", "templates", "project-standard.zh.template.md"))).toBe(false);
       expect(result.skillDir).toBe(join(homeDir, ".codex", "skills", "codemem"));
       expect(existsSync(join(result.skillDir, "SKILL.md"))).toBe(true);
       expect(existsSync(join(result.skillDir, "meta.json"))).toBe(true);
@@ -33,13 +33,13 @@ describe("agent install and export", () => {
       const content = readFileSync(join(result.skillDir, "SKILL.md"), "utf8");
       expect(content).toContain("重新生成规范文档");
       expect(content).toContain("name: codemem");
-      expect(content).toContain("自带 runtime 和模板");
+      expect(content).toContain("全局共享 runtime 和模板");
     } finally {
       process.env.HOME = previousHome;
     }
   });
 
-  test("installs a Codex skill into an overridden skill directory", async () => {
+  test("installs a Codex skill into an overridden global skill directory", async () => {
     const root = process.cwd();
     const targetDir = mkdtempSync(join(tmpdir(), "codemem-agent-codex-target-"));
     const skillDir = mkdtempSync(join(tmpdir(), "codemem-agent-codex-skill-"));
@@ -55,8 +55,11 @@ describe("agent install and export", () => {
     expect(result.agent).toBe("codex");
     expect(existsSync(join(skillDir, "SKILL.md"))).toBe(true);
     expect(existsSync(join(skillDir, "agents", "openai.yaml"))).toBe(true);
+    expect(existsSync(join(skillDir, "runtime", "bin", "codemem-init"))).toBe(true);
+    expect(existsSync(join(skillDir, "templates", "project-standard.zh.template.md"))).toBe(true);
+    expect(existsSync(join(targetDir, ".codemem", "_system", "runtime", "agent-runtime", "bin", "codemem-init"))).toBe(false);
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("name: codemem");
-    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain(".codemem/_system/runtime/agent-runtime/bin");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("runtime/bin/codemem-init");
     expect(readFileSync(join(skillDir, "agents", "openai.yaml"), "utf8")).toContain("display_name: \"Codemem Standards\"");
   });
 
@@ -97,14 +100,14 @@ describe("agent install and export", () => {
     expect(existsSync(join(result.packageDir, "integrations", "codex", "agents", "openai.yaml"))).toBe(true);
     expect(existsSync(join(result.packageDir, "integrations", "cursor", "SKILL.md"))).toBe(true);
     expect(existsSync(join(result.packageDir, "integrations", "cursor", "meta.json"))).toBe(true);
-    expect(existsSync(join(result.packageDir, "integrations", "cursor", "runtime", "bin", "codemem-init"))).toBe(true);
-    expect(existsSync(join(result.packageDir, "integrations", "cursor", "templates", "project-standard.zh.template.md"))).toBe(true);
+    expect(existsSync(join(result.packageDir, "integrations", "cursor", "runtime", "bin", "codemem-init"))).toBe(false);
+    expect(existsSync(join(result.packageDir, "integrations", "cursor", "templates", "project-standard.zh.template.md"))).toBe(false);
     expect(existsSync(join(result.packageDir, "integrations", "claude-code", "codemem.md"))).toBe(true);
     expect(existsSync(result.archiveFile)).toBe(true);
     expect(existsSync(result.digestFile)).toBe(true);
   }, 20000);
 
-  test("exported package installer installs a Codex skill and runtime", () => {
+  test("exported package installer installs a Codex skill with shared runtime", () => {
     const root = process.cwd();
     const outputDir = mkdtempSync(join(tmpdir(), "codemem-agent-export-install-"));
     const targetDir = mkdtempSync(join(tmpdir(), "codemem-agent-export-target-"));
@@ -136,7 +139,9 @@ describe("agent install and export", () => {
     expect(result.stdout).toContain("Installed codemem-agent-kit@1.0.1");
     expect(existsSync(join(skillDir, "SKILL.md"))).toBe(true);
     expect(existsSync(join(skillDir, "agents", "openai.yaml"))).toBe(true);
-    expect(existsSync(join(targetDir, ".codemem", "_system", "runtime", "agent-runtime", "bin", "codemem-build"))).toBe(true);
+    expect(existsSync(join(skillDir, "runtime", "bin", "codemem-build"))).toBe(true);
+    expect(existsSync(join(skillDir, "templates", "project-standard.zh.template.md"))).toBe(true);
+    expect(existsSync(join(targetDir, ".codemem", "_system", "runtime", "agent-runtime", "bin", "codemem-build"))).toBe(false);
   }, 20000);
 
   test("exported package installer writes Cursor skill into ~/.codex/skills", () => {
@@ -286,7 +291,7 @@ describe("agent install and export", () => {
     };
     expect(payload.agent).toBe("codex");
     expect(payload.integrationPath).toContain("SKILL.md");
-    expect(payload.runtimeBinDir).toContain(".codemem/_system/runtime/agent-runtime/bin");
+    expect(payload.runtimeBinDir).toContain("runtime/bin");
   });
 
   test("cli agent install writes Cursor skill into ~/.codex/skills", () => {

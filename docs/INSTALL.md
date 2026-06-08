@@ -50,8 +50,8 @@ CLI 会让你选择目标 agent：
 
 安装器会自动完成这些动作：
 
-- 把项目 runtime 二进制安装到目标项目 `.codemem/_system/runtime/agent-runtime/bin/`
-- 把文档模板安装到目标项目 `skills/codemem/templates/`
+- 把共享 runtime 二进制安装到全局 skill 目录 `~/.codex/skills/codemem/runtime/bin/`
+- 把共享文档模板安装到全局 skill 目录 `~/.codex/skills/codemem/templates/`
 - 为所选 agent 写入对应集成文件
 - 如果你没有传 `--skill-dir`，会先自动探测该 agent 常见的已有安装目录，探测不到才回退到默认位置
 - 如果在交互式终端里探测到的是“非默认目录”，CLI 会先询问你是否确认使用
@@ -99,8 +99,8 @@ AI 的默认行为是：
 - 是否已配置完成
 - 当前选中的集成目录来源原因
 - 集成文件路径
-- runtime 路径
-- 模板路径
+- 全局共享 runtime 路径
+- 全局共享模板路径
 
 `reason` 目前可能包含：
 

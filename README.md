@@ -10,6 +10,26 @@
 - `skills/codemem/`：skill 提示词与模板
 - `.codemem/`：生成的状态、日志、注册表与安装包产物
 
+## 共享资源结构
+
+```mermaid
+flowchart TD
+  A["codemem 源码仓库"] --> B["skills/codemem/templates<br/>源码模板目录"]
+  A --> C["core/dist/*<br/>编译后的 CLI"]
+  C --> D["~/.codex/skills/codemem/runtime/bin"]
+  B --> E["~/.codex/skills/codemem/templates"]
+  D --> F["任意项目中的 codemem-init / capture / build 调用"]
+  E --> F
+  G["目标项目"] --> H[".codemem/<br/>状态、文档、日志、注册表"]
+  F --> H
+```
+
+说明：
+
+- `skills/codemem/templates/` 是仓库里的源码模板目录，只给构建、打包、安装器使用。
+- `~/.codex/skills/codemem/runtime/bin/` 和 `~/.codex/skills/codemem/templates/` 是安装后的全局共享资源。
+- 目标项目只保留 `.codemem/` 状态与生成文档，不再复制 runtime 和模板副本。
+
 ## 常用命令
 
 ```bash
