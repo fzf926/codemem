@@ -36,12 +36,17 @@ function captureDocsRule(rootDir: string, project: string): void {
 }
 
 function buildSourcePackage(rootDir: string, version: string): { artifactDir: string; artifactFile: string } {
-  initProject({
+  const initialized = initProject({
     rootDir,
     project: "source-project",
     owner: "cm",
     projectPath: rootDir,
   });
+
+  expect(existsSync(initialized.agentsFile)).toBe(true);
+  expect(existsSync(initialized.cursorRuleFile)).toBe(true);
+  expect(readFileSync(initialized.agentsFile, "utf8")).toContain(".codemem/docs/global/global-standard.md");
+  expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("project-standard.source-project.md");
 
   captureDocsRule(rootDir, "source-project");
 

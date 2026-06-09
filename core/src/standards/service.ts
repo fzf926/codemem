@@ -1,5 +1,5 @@
 import { copyFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { ensureDir } from "../shared/fs";
 import {
   getGlobalDocsDir,
@@ -243,7 +243,85 @@ function renderTemplate(template: string, values: Record<string, string>): strin
   );
 }
 
-export function initProject(options: InitOptions): { metaFile: string; logFile: string } {
+const AGENTS_MANAGED_START = "<!-- codemem:managed:start -->";
+const AGENTS_MANAGED_END = "<!-- codemem:managed:end -->";
+
+function renderAgentsSection(project: string): string {
+  return [
+    AGENTS_MANAGED_START,
+    "## Codemem Standards",
+    "",
+    "Before making code changes, architecture decisions, or workflow recommendations, read these files when they exist:",
+    "",
+    "1. `.codemem/docs/global/global-standard.md`",
+    `2. \`.codemem/docs/projects/project-standard.${project}.md\``,
+    "3. `.codemem/docs/reports/standards-conflicts.md`",
+    "",
+    "Behavior rules:",
+    "",
+    "- Treat the project standard as the closest project-specific source of truth.",
+    "- Treat the global standard as the default cross-project baseline.",
+    "- If the conflict report shows unresolved contradictions, do not silently pick one. Call out the conflict and ask for confirmation when the choice matters.",
+    "- If standards docs are missing, initialize or regenerate them through the local codemem CLI before relying on unstated conventions.",
+    AGENTS_MANAGED_END,
+    "",
+  ].join("\n");
+}
+
+function syncAgentsGuide(rootDir: string, project: string): string {
+  const agentsFile = join(rootDir, "AGENTS.md");
+  const managedSection = renderAgentsSection(project);
+
+  if (!existsSync(agentsFile)) {
+    writeFileSync(agentsFile, [
+      "# AGENTS.md",
+      "",
+      "This project uses codemem to capture and enforce development standards.",
+      "",
+      managedSection,
+    ].join("\n"));
+    return agentsFile;
+  }
+
+  const existing = readFileSync(agentsFile, "utf8");
+  if (existing.includes(AGENTS_MANAGED_START) && existing.includes(AGENTS_MANAGED_END)) {
+    const next = existing.replace(
+      new RegExp(`${AGENTS_MANAGED_START}[\\s\\S]*?${AGENTS_MANAGED_END}`),
+      managedSection.trimEnd(),
+    );
+    writeFileSync(agentsFile, next.endsWith("\n") ? next : `${next}\n`);
+    return agentsFile;
+  }
+
+  const separator = existing.endsWith("\n") ? "\n" : "\n\n";
+  writeFileSync(agentsFile, `${existing}${separator}${managedSection}`);
+  return agentsFile;
+}
+
+function syncCursorRule(rootDir: string, project: string): string {
+  const ruleFile = join(rootDir, ".cursor", "rules", "codemem-standards.mdc");
+  ensureDir(dirname(ruleFile));
+  writeFileSync(ruleFile, [
+    "---",
+    "description: Codemem standards bootstrap",
+    "alwaysApply: false",
+    "---",
+    "",
+    "# Codemem Standards",
+    "",
+    "Before answering implementation questions or editing code, read these files when they exist:",
+    "",
+    "1. `.codemem/docs/global/global-standard.md`",
+    `2. \`.codemem/docs/projects/project-standard.${project}.md\``,
+    "3. `.codemem/docs/reports/standards-conflicts.md`",
+    "",
+    "Use those documents as the default project conventions before proposing code or workflow changes.",
+    "",
+  ].join("\n"));
+  return ruleFile;
+}
+
+export function initProject(options: InitOptions): { metaFile: string; logFile: string; agentsFile: string; cursorRuleFile: string } {
   migrateLegacyStateLayout(options.rootDir);
   const metaDir = getMetaDir(options.rootDir);
   const logsDir = getLogsDir(options.rootDir);
@@ -277,7 +355,10 @@ export function initProject(options: InitOptions): { metaFile: string; logFile: 
     configuredAt: createdAt,
   });
 
-  return { metaFile, logFile };
+  const agentsFile = syncAgentsGuide(options.rootDir, options.project);
+  const cursorRuleFile = syncCursorRule(options.rootDir, options.project);
+
+  return { metaFile, logFile, agentsFile, cursorRuleFile };
 }
 
 export function captureRule(options: CaptureOptions): string {

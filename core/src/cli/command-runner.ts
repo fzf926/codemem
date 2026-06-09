@@ -57,6 +57,8 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
     console.log(`Initialized project '${project}'`);
     console.log(`Meta: ${result.metaFile}`);
     console.log(`Log:  ${result.logFile}`);
+    console.log(`Agents guide: ${result.agentsFile}`);
+    console.log(`Cursor rule: ${result.cursorRuleFile}`);
   },
   capture({ args, rootDir }) {
     const project = args.get("project")!;
