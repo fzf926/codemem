@@ -120,6 +120,33 @@ AI 的默认行为是：
 - Windows 常见 agent 安装路径探测
 - Linux 常见 agent 安装路径探测
 
+### 第六步：后续如何更新
+
+如果你本机已经装好了 `codemem` 的 agent 集成，后续更新最推荐直接使用：
+
+```bash
+./bin/codemem-upgrade --agent cursor --target-dir /path/to/target-project --lang zh
+```
+
+如果你当前终端已经在目标项目目录下，而且本机已安装对应 agent 集成，也可以直接：
+
+```bash
+./bin/codemem-upgrade
+```
+
+这时它会自动：
+
+- 把当前工作目录视为目标项目
+- 根据已安装集成自动识别当前 agent
+- 执行 `bash scripts/build.sh`
+- 重新安装最新的全局共享资源到 `~/.codex/skills/codemem/`
+
+如果你希望更新前先拉最新代码，可以执行：
+
+```bash
+./bin/codemem-upgrade --pull true
+```
+
 ## 4. 提供方流程：生成并分享安装包
 
 ### 第一步：初始化项目

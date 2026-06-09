@@ -36,6 +36,8 @@ flowchart TD
 
 推荐优先使用 `codemem-agent install` 给指定 code agent 安装集成。未传 `--skill-dir` 时，安装器会先自动探测常见 agent 安装位置；在交互式终端里如果探测到非默认目录，还会先让你确认；之后再在项目开发过程中让 AI 负责初始化、记录规范和建议更新文档。
 
+如果你已经在本机装好了 `codemem` 集成，后续更新最简单的方式是直接进入目标项目目录执行 `./bin/codemem-upgrade`。当未传 `--agent` 和 `--target-dir` 时，它会优先把当前工作目录当成目标项目，并根据已安装集成自动识别当前 agent。
+
 ## 更多命令说明
 
 完整命令参考请见 [docs/COMMANDS.md](docs/COMMANDS.md)。
