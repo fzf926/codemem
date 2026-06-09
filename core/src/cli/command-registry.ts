@@ -305,8 +305,7 @@ export const commandSpecs: CommandSpec[] = [
     args: [
       {
         name: "--agent",
-        description: "target code agent whose shared integration should be refreshed",
-        required: true,
+        description: "target code agent whose shared integration should be refreshed; auto-detected from installed integrations when omitted",
         values: ["codex", "cursor", "claude-code"],
       },
       {

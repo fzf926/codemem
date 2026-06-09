@@ -177,7 +177,7 @@ Arguments:
 
 | Argument | Required | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
-| `--agent` | Required | - | `codex`, `cursor`, `claude-code` | target code agent whose shared integration should be refreshed |
+| `--agent` | Optional | - | `codex`, `cursor`, `claude-code` | target code agent whose shared integration should be refreshed; auto-detected from installed integrations when omitted |
 | `--target-dir` | Optional | `current working directory` | - | project directory used as the working project context during reinstall |
 | `--skill-dir` | Optional | - | - | override the integration install directory for the selected agent |
 | `--lang` | Optional | `zh` | `zh`, `en` | language used in regenerated prompts and guidance |

@@ -1,4 +1,5 @@
-import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
 import type { AgentId } from "../agent/service";
 import { buildPackage } from "../packaging/service";
 import { installPackage } from "../installer/service";
@@ -15,11 +16,42 @@ interface CommandContext {
 
 type CommandHandler = (context: CommandContext) => void;
 
+function resolveDirectoryArg(value: string | undefined): string {
+  if (!value || value === "current working directory") {
+    return process.cwd();
+  }
+  return resolve(value);
+}
+
+function detectUpgradeAgent(targetDir: string): AgentId {
+  const homeDir = process.env.HOME || "";
+  const sharedSkillDir = join(homeDir, ".codex", "skills", "codemem");
+  const sharedRuntimeDir = join(sharedSkillDir, "runtime", "bin");
+  const sharedTemplatesDir = join(sharedSkillDir, "templates");
+  const hasSharedResources = existsSync(sharedRuntimeDir) && existsSync(sharedTemplatesDir);
+
+  if (hasSharedResources && existsSync(join(sharedSkillDir, "meta.json"))) {
+    return "cursor";
+  }
+
+  if (hasSharedResources && existsSync(join(sharedSkillDir, "agents", "openai.yaml"))) {
+    return "codex";
+  }
+
+  const projectClaudeCommand = join(targetDir, ".claude", "commands", "codemem.md");
+  const homeClaudeCommand = join(homeDir, ".claude", "commands", "codemem.md");
+  if (hasSharedResources && (existsSync(projectClaudeCommand) || existsSync(homeClaudeCommand))) {
+    return "claude-code";
+  }
+
+  throw new Error("Could not auto-detect an installed agent integration. Pass --agent explicitly.");
+}
+
 const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
   init({ args, rootDir }) {
     const project = args.get("project")!;
     const owner = args.get("owner")!;
-    const projectPath = resolve(args.get("project-path") || process.cwd());
+    const projectPath = resolveDirectoryArg(args.get("project-path"));
 
     const result = initProject({ rootDir, project, owner, projectPath });
     console.log(`Initialized project '${project}'`);
@@ -100,8 +132,8 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
     throw new Error("codemem-agent uses its own entrypoint. Run ./bin/codemem-agent instead.");
   },
   upgrade({ args, rootDir }) {
-    const agent = args.get("agent")! as AgentId;
-    const targetDir = resolve(args.get("target-dir") || process.cwd());
+    const targetDir = resolveDirectoryArg(args.get("target-dir"));
+    const agent = (args.get("agent") as AgentId | undefined) || detectUpgradeAgent(targetDir);
     const lang = args.get("lang")!;
     const pull = args.get("pull") === "true";
     const skillDir = args.get("skill-dir") ? resolve(args.get("skill-dir")!) : undefined;
