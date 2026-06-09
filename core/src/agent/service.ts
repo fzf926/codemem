@@ -102,22 +102,22 @@ function renderCodexOpenAiYaml(lang: string): string {
   return [
     "interface:",
     `  display_name: "Codemem Standards"`,
-    `  short_description: "${lang === "en" ? "Initialize codemem, capture development standards, and regenerate standards docs after confirmation." : "初始化 codemem、记录开发规范，并在确认后重新生成规范文档。"}"`,
-    `  default_prompt: "${lang === "en" ? "Use Codemem Standards to initialize the current project, infer the project name, capture stable development standards, and only regenerate docs after the user confirms." : "使用 Codemem Standards 为当前项目初始化 codemem，自动推断项目名，记录稳定开发规范，并在用户确认后重新生成规范文档。"}"`,
+    `  short_description: "${lang === "en" ? "Initialize codemem, capture development standards, and regenerate standards docs in one pass unless a high-risk decision requires confirmation." : "为当前项目初始化 codemem、记录开发规范，并默认一轮完成规范文档更新，只有高风险决策才打断确认。"}"`,
+    `  default_prompt: "${lang === "en" ? "Use Codemem Standards to initialize the current project, infer the project name, capture stable development standards, and execute the full workflow in one pass unless a high-risk decision requires confirmation." : "使用 Codemem Standards 为当前项目初始化 codemem，自动推断项目名，记录稳定开发规范，并默认一轮执行到底，只有高风险决策才打断确认。"}"`,
     "",
   ].join("\n");
 }
 
 function renderCursorMetaJson(rootDir: string, lang: string): string {
   const description = lang === "en"
-    ? "Initialize codemem for the current project, capture development standards, and regenerate standards docs after confirmation."
-    : "为当前项目初始化 codemem、记录开发规范，并在确认后重新生成规范文档。";
+    ? "Initialize codemem for the current project, capture development standards, and finish the workflow in one pass unless a high-risk decision requires confirmation."
+    : "为当前项目初始化 codemem、记录开发规范，并默认一轮执行到底，只有高风险决策才打断确认。";
   return `${JSON.stringify({
     slug: AGENT_SKILL_NAME,
     name: lang === "en" ? "Codemem Development Standards" : "Codemem 项目开发规范",
     version: loadVersion(rootDir),
     description,
-    descriptionZh: "为当前项目初始化 codemem、记录开发规范，并在确认后重新生成规范文档。",
+    descriptionZh: "为当前项目初始化 codemem、记录开发规范，并默认一轮执行到底，只有高风险决策才打断确认。",
     author: "codemem",
     category: "developer-tools",
     tags: ["codemem", "standards", "workflow", "documentation"],
@@ -218,13 +218,13 @@ function renderSharedWorkflow(input: { runtimeBinDir: string; templatesDir: stri
       "3. Check whether the current project already has `.codemem/` state.",
       "4. Use the globally shared codemem runtime and templates installed with this skill.",
       "5. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
-      "6. If project-name confidence is low, ask one concise question; otherwise initialize automatically.",
+      "6. Default to finishing the workflow in one pass. Only pause when project-name confidence is low, when a change would overwrite meaningful user content, or when a conflict cannot be resolved safely.",
       `7. Use \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` to initialize.`,
       "8. Capture stable development conventions as separate rules when the user or the codebase reveals them.",
       `9. Use \`${captureCommand} --root <project_root> ...\` to append one rule at a time.`,
-      "10. Do not rebuild standards docs silently. If rules changed materially, recommend regeneration first.",
-      `11. Only after user confirmation, run \`${buildCommand} --root <project_root> --project <name> --lang en\`.`,
-      "12. If the user explicitly asks to regenerate the docs, do it immediately.",
+      `10. Regenerate standards docs in the same run when new rules were captured, state changed, or the user asked for initialization or a standards update.`,
+      `11. Run \`${buildCommand} --root <project_root> --project <name> --lang en\` unless a high-risk decision still needs confirmation.`,
+      "12. Ask one concise confirmation question only for high-risk cases: uncertain project identity, destructive overwrite, or unresolved standards conflict.",
     ].join("\n");
   }
 
@@ -235,13 +235,13 @@ function renderSharedWorkflow(input: { runtimeBinDir: string; templatesDir: stri
     "3. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
     "4. 使用当前 skill 安装时自带的全局共享 runtime 和模板。",
     "5. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
-    "6. 如果对项目名判断不够稳，再只问一个简短确认问题；否则直接初始化。",
+    "6. 默认一轮执行到底；只有项目名判断不稳、会覆盖有价值的用户内容、或冲突无法安全决策时，才打断做一次简短确认。",
     `7. 使用 \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` 完成初始化。`,
     "8. 在开发过程中，当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。",
     `9. 使用 \`${captureCommand} --root <project_root> ...\` 逐条追加规范。`,
-    "10. 不要静默重建规范文档；如果发现规范有明显新增、冲突或状态变化，应先提出更新建议。",
-    `11. 只有在用户确认后，再执行 \`${buildCommand} --root <project_root> --project <name> --lang zh\`。`,
-    "12. 如果用户明确要求“重新生成规范文档”，则直接执行生成。",
+    "10. 只要本轮新增了规范、项目状态发生变化、或用户要求初始化/更新规范文档，就在同一轮里继续生成规范文档。",
+    `11. 直接执行 \`${buildCommand} --root <project_root> --project <name> --lang zh\`，除非仍存在高风险决策需要确认。`,
+    "12. 只有在高风险场景下才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
   ].join("\n");
 }
 
@@ -265,13 +265,13 @@ function renderCursorWorkflow(input: {
       "3. Check whether the current project already has `.codemem/` state.",
       "4. Use the globally shared runtime and templates bundled with this skill.",
       "5. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
-      "6. If project-name confidence is low, ask one concise question; otherwise initialize automatically.",
+      "6. Default to finishing the workflow in one pass. Only pause when project-name confidence is low, when a change would overwrite meaningful user content, or when a conflict cannot be resolved safely.",
       `7. Use \`${initCommand}\` to initialize.`,
       "8. Capture stable development conventions as separate rules when the user or the codebase reveals them.",
       `9. Use \`${captureCommand}\` to append one rule at a time.`,
-      "10. Do not rebuild standards docs silently. If rules changed materially, recommend regeneration first.",
-      `11. Only after user confirmation, run \`${buildCommand}\`.`,
-      "12. If the user explicitly asks to regenerate the docs, do it immediately.",
+      "10. Regenerate standards docs in the same run when new rules were captured, state changed, or the user asked for initialization or a standards update.",
+      `11. Run \`${buildCommand}\` unless a high-risk decision still needs confirmation.`,
+      "12. Ask one concise confirmation question only for high-risk cases: uncertain project identity, destructive overwrite, or unresolved standards conflict.",
     ].join("\n");
   }
 
@@ -282,13 +282,13 @@ function renderCursorWorkflow(input: {
     "3. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
     "4. 使用当前 skill 自带的全局共享 runtime 和模板。",
     "5. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
-    "6. 如果对项目名判断不够稳，再只问一个简短确认问题；否则直接初始化。",
+    "6. 默认一轮执行到底；只有项目名判断不稳、会覆盖有价值的用户内容、或冲突无法安全决策时，才打断做一次简短确认。",
     `7. 使用 \`${initCommand}\` 完成初始化。`,
     "8. 在开发过程中，当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。",
     `9. 使用 \`${captureCommand}\` 逐条追加规范。`,
-    "10. 不要静默重建规范文档；如果发现规范有明显新增、冲突或状态变化，应先提出更新建议。",
-    `11. 只有在用户确认后，再执行 \`${buildCommand}\`。`,
-    "12. 如果用户明确要求“重新生成规范文档”，则直接执行生成。",
+    "10. 只要本轮新增了规范、项目状态发生变化、或用户要求初始化/更新规范文档，就在同一轮里继续生成规范文档。",
+    `11. 直接执行 \`${buildCommand}\`，除非仍存在高风险决策需要确认。`,
+    "12. 只有在高风险场景下才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
   ].join("\n");
 }
 
@@ -312,8 +312,8 @@ const agentSpecs: AgentTargetSpec[] = [
         lang,
       });
       const description = lang === "en"
-        ? "Use when the user wants the agent to initialize codemem for the current project, capture development standards, or regenerate standards docs after confirmation."
-        : "当用户希望 agent 为当前项目初始化 codemem、记录开发规范、或在确认后重新生成规范文档时使用。";
+        ? "Use when the user wants the agent to initialize codemem for the current project, capture development standards, or finish standards updates in one pass unless a high-risk decision requires confirmation."
+        : "当用户希望 agent 为当前项目初始化 codemem、记录开发规范、或默认一轮完成规范更新且只有高风险才确认时使用。";
       const title = lang === "en" ? "Codemem Development Standards" : "Codemem 项目开发规范";
       const body = lang === "en"
         ? [
@@ -324,7 +324,8 @@ const agentSpecs: AgentTargetSpec[] = [
           "Operational rules:",
           "- Default to the current working directory as the project root.",
           "- Infer the project name automatically when possible.",
-          "- Ask before rebuilding standards docs unless the user explicitly requested regeneration.",
+          "- Default to finishing initialization, capture, and document generation in one pass.",
+          "- Pause only for high-risk decisions: uncertain project identity, destructive overwrite, or unresolved standards conflict.",
           "- Keep output concise and execution-oriented.",
         ].join("\n")
         : [
@@ -335,7 +336,8 @@ const agentSpecs: AgentTargetSpec[] = [
           "执行规则：",
           "- 默认把当前工作目录视为项目根目录。",
           "- 尽量自动推断项目名称。",
-          "- 除非用户明确要求，否则生成规范文档前先给出更新建议并等待确认。",
+          "- 默认连续完成初始化、规范记录和文档生成，不要拆成多轮确认。",
+          "- 只有高风险决策才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
           "- 输出保持简洁，以执行为主。",
         ].join("\n");
       return [
@@ -371,8 +373,8 @@ const agentSpecs: AgentTargetSpec[] = [
       const installDir = toPosixPath(skillDir);
 
       const description = lang === "en"
-        ? "Use when the user wants Cursor to initialize codemem for the current project, capture development standards, or regenerate standards docs after confirmation."
-        : "当用户希望 Cursor 为当前项目初始化 codemem、记录开发规范、或在确认后重新生成规范文档时使用。";
+        ? "Use when the user wants Cursor to initialize codemem for the current project, capture development standards, or finish standards updates in one pass unless a high-risk decision requires confirmation."
+        : "当用户希望 Cursor 为当前项目初始化 codemem、记录开发规范、或默认一轮完成规范更新且只有高风险才确认时使用。";
       const title = lang === "en" ? "Codemem Development Standards" : "Codemem 项目开发规范";
       const body = lang === "en"
         ? [
@@ -385,7 +387,8 @@ const agentSpecs: AgentTargetSpec[] = [
           "Operational rules:",
           "- Default to the current working directory as the project root.",
           "- Infer the project name automatically when possible.",
-          "- Ask before rebuilding standards docs unless the user explicitly requested regeneration.",
+          "- Default to finishing initialization, capture, and document generation in one pass.",
+          "- Pause only for high-risk decisions: uncertain project identity, destructive overwrite, or unresolved standards conflict.",
           "- Keep output concise and execution-oriented.",
         ].join("\n")
         : [
@@ -398,7 +401,8 @@ const agentSpecs: AgentTargetSpec[] = [
           "执行规则：",
           "- 默认把当前工作目录视为项目根目录。",
           "- 尽量自动推断项目名称。",
-          "- 除非用户明确要求，否则生成规范文档前先给出更新建议并等待确认。",
+          "- 默认连续完成初始化、规范记录和文档生成，不要拆成多轮确认。",
+          "- 只有高风险决策才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
           "- 输出保持简洁，以执行为主。",
         ].join("\n");
       return [

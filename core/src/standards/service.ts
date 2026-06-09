@@ -263,6 +263,8 @@ function renderAgentsSection(project: string): string {
     "- Treat the global standard as the default cross-project baseline.",
     "- If the conflict report shows unresolved contradictions, do not silently pick one. Call out the conflict and ask for confirmation when the choice matters.",
     "- If standards docs are missing, initialize or regenerate them through the local codemem CLI before relying on unstated conventions.",
+    "- Default to finishing initialization, standards capture, and document regeneration in one pass.",
+    "- Only pause for confirmation when project identity is uncertain, a change would overwrite meaningful user content, or a standards conflict cannot be resolved safely.",
     AGENTS_MANAGED_END,
     "",
   ].join("\n");
@@ -316,6 +318,9 @@ function syncCursorRule(rootDir: string, project: string): string {
     "3. `.codemem/docs/reports/standards-conflicts.md`",
     "",
     "Use those documents as the default project conventions before proposing code or workflow changes.",
+    "",
+    "Default to finishing initialization, standards capture, and document regeneration in one pass.",
+    "Only pause for confirmation when project identity is uncertain, a change would overwrite meaningful user content, or a standards conflict cannot be resolved safely.",
     "",
   ].join("\n"));
   return ruleFile;

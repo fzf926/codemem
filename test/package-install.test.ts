@@ -46,7 +46,9 @@ function buildSourcePackage(rootDir: string, version: string): { artifactDir: st
   expect(existsSync(initialized.agentsFile)).toBe(true);
   expect(existsSync(initialized.cursorRuleFile)).toBe(true);
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain(".codemem/docs/global/global-standard.md");
+  expect(readFileSync(initialized.agentsFile, "utf8")).toContain("Default to finishing initialization, standards capture, and document regeneration in one pass.");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("project-standard.source-project.md");
+  expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("Default to finishing initialization, standards capture, and document regeneration in one pass.");
 
   captureDocsRule(rootDir, "source-project");
 
