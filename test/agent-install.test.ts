@@ -34,6 +34,9 @@ describe("agent install and export", () => {
       expect(content).toContain("重新生成规范文档");
       expect(content).toContain("name: codemem");
       expect(content).toContain("全局共享 runtime 和模板");
+      expect(content).toContain(".codemem/docs/global/global-standard.md");
+      expect(content).toContain(".codemem/docs/projects/project-standard.<project_name>.md");
+      expect(content).toContain("优先读取已有规范文档");
     } finally {
       process.env.HOME = previousHome;
     }
@@ -60,6 +63,7 @@ describe("agent install and export", () => {
     expect(existsSync(join(targetDir, ".codemem", "_system", "runtime", "agent-runtime", "bin", "codemem-init"))).toBe(false);
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("name: codemem");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("runtime/bin/codemem-init");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain(".codemem/docs/global/global-standard.md");
     expect(readFileSync(join(skillDir, "agents", "openai.yaml"), "utf8")).toContain("display_name: \"Codemem Standards\"");
   });
 
@@ -77,6 +81,7 @@ describe("agent install and export", () => {
     expect(result.agent).toBe("claude-code");
     expect(existsSync(join(targetDir, ".claude", "commands", "codemem.md"))).toBe(true);
     expect(readFileSync(result.integrationPath, "utf8")).toContain("/codemem");
+    expect(readFileSync(result.integrationPath, "utf8")).toContain(".codemem/docs/global/global-standard.md");
   });
 
   test("exports a shareable agent package with installer and digest", () => {

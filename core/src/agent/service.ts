@@ -206,35 +206,42 @@ function renderSharedWorkflow(input: { runtimeBinDir: string; templatesDir: stri
   const initCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.templatesDir)}" ${toPosixPath(join(input.runtimeBinDir, "codemem-init"))}`;
   const captureCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.templatesDir)}" ${toPosixPath(join(input.runtimeBinDir, "codemem-capture"))}`;
   const buildCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.templatesDir)}" ${toPosixPath(join(input.runtimeBinDir, "codemem-build"))}`;
+  const globalDoc = ".codemem/docs/global/global-standard.md";
+  const projectDoc = ".codemem/docs/projects/project-standard.<project_name>.md";
+  const conflictsDoc = ".codemem/docs/reports/standards-conflicts.md";
 
   if (input.lang === "en") {
     return [
       "When this workflow is invoked:",
-      "1. Check whether the current project already has `.codemem/` state.",
-      "2. Use the globally shared codemem runtime and templates installed with this skill.",
-      "3. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
-      "4. If project-name confidence is low, ask one concise question; otherwise initialize automatically.",
-      `5. Use \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` to initialize.`,
-      "6. Capture stable development conventions as separate rules when the user or the codebase reveals them.",
-      `7. Use \`${captureCommand} --root <project_root> ...\` to append one rule at a time.`,
-      "8. Do not rebuild standards docs silently. If rules changed materially, recommend regeneration first.",
-      `9. Only after user confirmation, run \`${buildCommand} --root <project_root> --project <name> --lang en\`.`,
-      "10. If the user explicitly asks to regenerate the docs, do it immediately.",
+      `1. First read existing standards docs when present: \`${globalDoc}\`, \`${projectDoc}\`, and \`${conflictsDoc}\`.`,
+      "2. Treat the loaded standards docs as the default conventions for the current project before making decisions.",
+      "3. Check whether the current project already has `.codemem/` state.",
+      "4. Use the globally shared codemem runtime and templates installed with this skill.",
+      "5. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
+      "6. If project-name confidence is low, ask one concise question; otherwise initialize automatically.",
+      `7. Use \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` to initialize.`,
+      "8. Capture stable development conventions as separate rules when the user or the codebase reveals them.",
+      `9. Use \`${captureCommand} --root <project_root> ...\` to append one rule at a time.`,
+      "10. Do not rebuild standards docs silently. If rules changed materially, recommend regeneration first.",
+      `11. Only after user confirmation, run \`${buildCommand} --root <project_root> --project <name> --lang en\`.`,
+      "12. If the user explicitly asks to regenerate the docs, do it immediately.",
     ].join("\n");
   }
 
   return [
     "当这个工作流被调用时：",
-    "1. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
-    "2. 使用当前 skill 安装时自带的全局共享 runtime 和模板。",
-    "3. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
-    "4. 如果对项目名判断不够稳，再只问一个简短确认问题；否则直接初始化。",
-    `5. 使用 \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` 完成初始化。`,
-    "6. 在开发过程中，当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。",
-    `7. 使用 \`${captureCommand} --root <project_root> ...\` 逐条追加规范。`,
-    "8. 不要静默重建规范文档；如果发现规范有明显新增、冲突或状态变化，应先提出更新建议。",
-    `9. 只有在用户确认后，再执行 \`${buildCommand} --root <project_root> --project <name> --lang zh\`。`,
-    "10. 如果用户明确要求“重新生成规范文档”，则直接执行生成。",
+    `1. 优先读取已有规范文档：\`${globalDoc}\`、\`${projectDoc}\`、\`${conflictsDoc}\`（如果存在）。`,
+    "2. 把已读取到的规范文档视为当前项目的默认约束，再进行后续判断与执行。",
+    "3. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
+    "4. 使用当前 skill 安装时自带的全局共享 runtime 和模板。",
+    "5. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
+    "6. 如果对项目名判断不够稳，再只问一个简短确认问题；否则直接初始化。",
+    `7. 使用 \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` 完成初始化。`,
+    "8. 在开发过程中，当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。",
+    `9. 使用 \`${captureCommand} --root <project_root> ...\` 逐条追加规范。`,
+    "10. 不要静默重建规范文档；如果发现规范有明显新增、冲突或状态变化，应先提出更新建议。",
+    `11. 只有在用户确认后，再执行 \`${buildCommand} --root <project_root> --project <name> --lang zh\`。`,
+    "12. 如果用户明确要求“重新生成规范文档”，则直接执行生成。",
   ].join("\n");
 }
 
@@ -246,35 +253,42 @@ function renderCursorWorkflow(input: {
   const initCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.globalTemplatesDir)}" ${toPosixPath(join(input.globalRuntimeBinDir, "codemem-init"))} --root <project_root> --project <name> --owner <owner> --project-path <project_root>`;
   const captureCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.globalTemplatesDir)}" ${toPosixPath(join(input.globalRuntimeBinDir, "codemem-capture"))} --root <project_root> ...`;
   const buildCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.globalTemplatesDir)}" ${toPosixPath(join(input.globalRuntimeBinDir, "codemem-build"))} --root <project_root> --project <name> --lang ${input.lang === "en" ? "en" : "zh"}`;
+  const globalDoc = ".codemem/docs/global/global-standard.md";
+  const projectDoc = ".codemem/docs/projects/project-standard.<project_name>.md";
+  const conflictsDoc = ".codemem/docs/reports/standards-conflicts.md";
 
   if (input.lang === "en") {
     return [
       "When this workflow is invoked:",
-      "1. Check whether the current project already has `.codemem/` state.",
-      "2. Use the globally shared runtime and templates bundled with this skill.",
-      "3. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
-      "4. If project-name confidence is low, ask one concise question; otherwise initialize automatically.",
-      `5. Use \`${initCommand}\` to initialize.`,
-      "6. Capture stable development conventions as separate rules when the user or the codebase reveals them.",
-      `7. Use \`${captureCommand}\` to append one rule at a time.`,
-      "8. Do not rebuild standards docs silently. If rules changed materially, recommend regeneration first.",
-      `9. Only after user confirmation, run \`${buildCommand}\`.`,
-      "10. If the user explicitly asks to regenerate the docs, do it immediately.",
+      `1. First read existing standards docs when present: \`${globalDoc}\`, \`${projectDoc}\`, and \`${conflictsDoc}\`.`,
+      "2. Treat the loaded standards docs as the default conventions for the current project before making decisions.",
+      "3. Check whether the current project already has `.codemem/` state.",
+      "4. Use the globally shared runtime and templates bundled with this skill.",
+      "5. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
+      "6. If project-name confidence is low, ask one concise question; otherwise initialize automatically.",
+      `7. Use \`${initCommand}\` to initialize.`,
+      "8. Capture stable development conventions as separate rules when the user or the codebase reveals them.",
+      `9. Use \`${captureCommand}\` to append one rule at a time.`,
+      "10. Do not rebuild standards docs silently. If rules changed materially, recommend regeneration first.",
+      `11. Only after user confirmation, run \`${buildCommand}\`.`,
+      "12. If the user explicitly asks to regenerate the docs, do it immediately.",
     ].join("\n");
   }
 
   return [
     "当这个工作流被调用时：",
-    "1. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
-    "2. 使用当前 skill 自带的全局共享 runtime 和模板。",
-    "3. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
-    "4. 如果对项目名判断不够稳，再只问一个简短确认问题；否则直接初始化。",
-    `5. 使用 \`${initCommand}\` 完成初始化。`,
-    "6. 在开发过程中，当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。",
-    `7. 使用 \`${captureCommand}\` 逐条追加规范。`,
-    "8. 不要静默重建规范文档；如果发现规范有明显新增、冲突或状态变化，应先提出更新建议。",
-    `9. 只有在用户确认后，再执行 \`${buildCommand}\`。`,
-    "10. 如果用户明确要求“重新生成规范文档”，则直接执行生成。",
+    `1. 优先读取已有规范文档：\`${globalDoc}\`、\`${projectDoc}\`、\`${conflictsDoc}\`（如果存在）。`,
+    "2. 把已读取到的规范文档视为当前项目的默认约束，再进行后续判断与执行。",
+    "3. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
+    "4. 使用当前 skill 自带的全局共享 runtime 和模板。",
+    "5. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
+    "6. 如果对项目名判断不够稳，再只问一个简短确认问题；否则直接初始化。",
+    `7. 使用 \`${initCommand}\` 完成初始化。`,
+    "8. 在开发过程中，当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。",
+    `9. 使用 \`${captureCommand}\` 逐条追加规范。`,
+    "10. 不要静默重建规范文档；如果发现规范有明显新增、冲突或状态变化，应先提出更新建议。",
+    `11. 只有在用户确认后，再执行 \`${buildCommand}\`。`,
+    "12. 如果用户明确要求“重新生成规范文档”，则直接执行生成。",
   ].join("\n");
 }
 
