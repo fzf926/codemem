@@ -47,3 +47,20 @@ Guidelines:
 - Keep business logic in `core/src/`, not in `bin/`.
 - Treat `skills/codemem/SKILL.md.tmpl` as the source for generated `skills/codemem/SKILL.md`.
 - If you change standards generation or agent behavior, re-run `bash scripts/build.sh` and relevant tests.
+
+<!-- codemem:managed:start -->
+## Codemem Standards
+
+Before making code changes, architecture decisions, or workflow recommendations, read these files when they exist:
+
+1. `.codemem/docs/global/global-standard.md`
+2. `.codemem/docs/projects/project-standard.codemem.md`
+3. `.codemem/docs/reports/standards-conflicts.md`
+
+Behavior rules:
+
+- Treat the project standard as the closest project-specific source of truth.
+- Treat the global standard as the default cross-project baseline.
+- If the conflict report shows unresolved contradictions, do not silently pick one. Call out the conflict and ask for confirmation when the choice matters.
+- If standards docs are missing, initialize or regenerate them through the local codemem CLI before relying on unstated conventions.
+<!-- codemem:managed:end -->
