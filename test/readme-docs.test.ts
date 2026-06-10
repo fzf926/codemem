@@ -6,7 +6,9 @@ describe("generated readme docs", () => {
   test("render command examples and commands reference link", () => {
     const root = process.cwd();
     const readme = readFileSync(join(root, "README.md"), "utf8");
-    expect(readme).toContain("./bin/codemem-agent install");
+    expect(readme).toContain("codemem agent install");
+    expect(readme).toContain("codemem upgrade");
+    expect(readme).toContain("scripts/install.sh");
     expect(readme).toContain("docs/COMMANDS.md");
     expect(readme).toContain("docs/INSTALL.md");
   });
@@ -18,7 +20,7 @@ describe("generated readme docs", () => {
     expect(readme).toContain("安装策略");
     expect(readme).toContain("upgraded");
     expect(readme).toContain("schema: 1");
-    expect(commandsDoc).toContain("## `codemem-package`");
+    expect(commandsDoc).toContain("## `codemem package`");
     expect(commandsDoc).toContain(".codemem/_system/packages/standards/<package-id>-<version>.tgz");
     expect(commandsDoc).toContain("Arguments:");
     expect(commandsDoc).toContain("| `--project` | Required |");

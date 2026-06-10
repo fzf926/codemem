@@ -2,12 +2,12 @@
 
 This file is generated from the command registry in `core/src/cli/command-registry.ts`.
 
-## `codemem-init`
+## `codemem init`
 
 initialize a project and register it
 
 ```bash
-./bin/codemem-init --project <project_name> --owner <owner_name>
+codemem init --project <project_name> --owner <owner_name>
 ```
 
 Arguments:
@@ -24,12 +24,12 @@ Outputs:
 - `.codemem/_system/logs/standards/<project>.jsonl`
 - `.codemem/_system/registry/projects-registry.json`
 
-## `codemem-capture`
+## `codemem capture`
 
 append one development standard
 
 ```bash
-./bin/codemem-capture \
+codemem capture \
   --project <project_name> \
   --type <general|architecture|code|api|data|security|testing|docs|ops|release> \
   --title "short title" \
@@ -53,12 +53,12 @@ Arguments:
 | `--source` | Optional | `manual` | - | where the rule came from, for traceability |
 | `--lang` | Optional | `zh` | `zh`, `en` | language used in generated labels and copy |
 
-## `codemem-build`
+## `codemem build`
 
 generate standard documents
 
 ```bash
-./bin/codemem-build --project <project_name> --lang zh
+codemem build --project <project_name> --lang zh
 ```
 
 Arguments:
@@ -75,12 +75,12 @@ Outputs:
 - `.codemem/docs/projects/project-standard.<project_name>.md`
 - `.codemem/docs/reports/standards-conflicts.md`
 
-## `codemem-package`
+## `codemem package`
 
 build a shareable package directory and .tgz
 
 ```bash
-./bin/codemem-package --project <project_name> --version <version> --lang zh
+codemem package --project <project_name> --version <version> --lang zh
 ```
 
 Arguments:
@@ -99,12 +99,12 @@ Outputs:
 - `.codemem/_system/packages/standards/<package-id>-<version>.tgz.sha256`
 - `.codemem/_system/registry/packages-registry.json`
 
-## `codemem-install`
+## `codemem install`
 
 install a shared package into another project
 
 ```bash
-./bin/codemem-install \
+codemem install \
   --package <package_dir_or_tgz> \
   --target <target_project_dir> \
   --project <target_project_name> \
@@ -131,15 +131,15 @@ Install outcomes:
 - 默认禁止重复安装同一版本；显式传入 `--force` 后会返回 `reinstalled`。
 - 默认禁止用不同的已安装包 ID 进行覆盖；显式传入 `--force` 后才允许替换。
 
-## `codemem-agent`
+## `codemem agent`
 
 install or export agent-specific codemem integrations
 
 ```bash
-./bin/codemem-agent install
-./bin/codemem-agent install --agent codex --target-dir <project_dir>
-./bin/codemem-agent detect --agent codex --target-dir <project_dir>
-./bin/codemem-agent export --agent all --target-dir <output_dir>
+codemem agent install
+codemem agent install --agent codex --target-dir <project_dir>
+codemem agent detect --agent codex --target-dir <project_dir>
+codemem agent export --agent all --target-dir <output_dir>
 ```
 
 Arguments:
@@ -164,13 +164,13 @@ Outputs:
 - `.codemem/_system/packages/agents/<package-name>-<version>/`
 - `.codemem/_system/packages/agents/<package-name>-<version>.tgz`
 
-## `codemem-upgrade`
+## `codemem upgrade`
 
 rebuild codemem and reinstall the latest shared agent resources
 
 ```bash
-./bin/codemem-upgrade --agent cursor --target-dir <project_dir>
-./bin/codemem-upgrade --agent codex --target-dir <project_dir> --pull true
+codemem upgrade --agent cursor --target-dir <project_dir>
+codemem upgrade --agent codex --target-dir <project_dir> --pull true
 ```
 
 Arguments:
@@ -189,12 +189,12 @@ Outputs:
 - `~/.codex/skills/codemem/runtime/bin/`
 - `~/.codex/skills/codemem/templates/`
 
-## `codemem-projects`
+## `codemem projects`
 
 list configured projects
 
 ```bash
-./bin/codemem-projects
+codemem projects
 ```
 
 Arguments:

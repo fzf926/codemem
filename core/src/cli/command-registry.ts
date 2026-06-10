@@ -22,7 +22,7 @@ export const commandSpecs: CommandSpec[] = [
     binName: "codemem-init",
     devScript: "dev:init",
     summary: "initialize a project and register it",
-    example: "./bin/codemem-init --project <project_name> --owner <owner_name>",
+    example: "codemem init --project <project_name> --owner <owner_name>",
     args: [
       {
         name: "--project",
@@ -52,7 +52,7 @@ export const commandSpecs: CommandSpec[] = [
     devScript: "dev:capture",
     summary: "append one development standard",
     example: [
-      "./bin/codemem-capture \\",
+      "codemem capture \\",
       "  --project <project_name> \\",
       "  --type <general|architecture|code|api|data|security|testing|docs|ops|release> \\",
       "  --title \"short title\" \\",
@@ -119,7 +119,7 @@ export const commandSpecs: CommandSpec[] = [
     binName: "codemem-build",
     devScript: "dev:build",
     summary: "generate standard documents",
-    example: "./bin/codemem-build --project <project_name> --lang zh",
+    example: "codemem build --project <project_name> --lang zh",
     args: [
       {
         name: "--project",
@@ -150,7 +150,7 @@ export const commandSpecs: CommandSpec[] = [
     binName: "codemem-package",
     devScript: "dev:package",
     summary: "build a shareable package directory and .tgz",
-    example: "./bin/codemem-package --project <project_name> --version <version> --lang zh",
+    example: "codemem package --project <project_name> --version <version> --lang zh",
     args: [
       {
         name: "--project",
@@ -187,7 +187,7 @@ export const commandSpecs: CommandSpec[] = [
     devScript: "dev:install",
     summary: "install a shared package into another project",
     example: [
-      "./bin/codemem-install \\",
+      "codemem install \\",
       "  --package <package_dir_or_tgz> \\",
       "  --target <target_project_dir> \\",
       "  --project <target_project_name> \\",
@@ -240,10 +240,10 @@ export const commandSpecs: CommandSpec[] = [
     devScript: "dev:agent",
     summary: "install or export agent-specific codemem integrations",
     example: [
-      "./bin/codemem-agent install",
-      "./bin/codemem-agent install --agent codex --target-dir <project_dir>",
-      "./bin/codemem-agent detect --agent codex --target-dir <project_dir>",
-      "./bin/codemem-agent export --agent all --target-dir <output_dir>",
+      "codemem agent install",
+      "codemem agent install --agent codex --target-dir <project_dir>",
+      "codemem agent detect --agent codex --target-dir <project_dir>",
+      "codemem agent export --agent all --target-dir <output_dir>",
     ],
     args: [
       {
@@ -299,8 +299,8 @@ export const commandSpecs: CommandSpec[] = [
     devScript: "dev:upgrade",
     summary: "rebuild codemem and reinstall the latest shared agent resources",
     example: [
-      "./bin/codemem-upgrade --agent cursor --target-dir <project_dir>",
-      "./bin/codemem-upgrade --agent codex --target-dir <project_dir> --pull true",
+      "codemem upgrade --agent cursor --target-dir <project_dir>",
+      "codemem upgrade --agent codex --target-dir <project_dir> --pull true",
     ],
     args: [
       {
@@ -341,7 +341,7 @@ export const commandSpecs: CommandSpec[] = [
     binName: "codemem-projects",
     devScript: "dev:projects",
     summary: "list configured projects",
-    example: "./bin/codemem-projects",
+    example: "codemem projects",
     args: [
       {
         name: "--json",

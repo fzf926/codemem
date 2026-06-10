@@ -4,6 +4,10 @@ export function formatExample(example: string | string[]): string {
   return Array.isArray(example) ? example.join("\n") : example;
 }
 
+export function renderPublicCommandName(spec: CommandSpec): string {
+  return `codemem ${spec.id}`;
+}
+
 export function renderOutputs(outputs: string[] | undefined): string {
   return (outputs || []).map((item) => `- \`${item}\``).join("\n");
 }
@@ -42,7 +46,7 @@ export function renderArgsTable(args: CommandArgSpec[] | undefined): string {
 export function renderCommandReference(specs: CommandSpec[] = commandSpecs): string {
   return specs.map((spec) => {
     const lines = [
-      `## \`${spec.binName}\``,
+      `## \`${renderPublicCommandName(spec)}\``,
       "",
       spec.summary,
       "",
@@ -77,7 +81,7 @@ export function renderCommandReference(specs: CommandSpec[] = commandSpecs): str
 
 export function renderArgumentReference(specs: CommandSpec[] = commandSpecs): string {
   return specs.map((spec) => [
-    `### \`${spec.binName}\``,
+    `### \`${renderPublicCommandName(spec)}\``,
     "",
     renderArgsTable(spec.args),
   ].join("\n")).join("\n\n");

@@ -33,7 +33,7 @@ flowchart TD
 ## 常用命令
 
 ```bash
-./bin/codemem-capture \
+codemem capture \
   --project <project_name> \
   --type <general|architecture|code|api|data|security|testing|docs|ops|release> \
   --title "short title" \
@@ -41,20 +41,50 @@ flowchart TD
   --priority <P0|P1|P2|P3> \
   --status <active|draft|deprecated> \
   --scope <project|global>
-./bin/codemem-build --project <project_name> --lang zh
-./bin/codemem-package --project <project_name> --version <version> --lang zh
-./bin/codemem-agent install
-./bin/codemem-agent install --agent codex --target-dir <project_dir>
-./bin/codemem-agent detect --agent codex --target-dir <project_dir>
-./bin/codemem-agent export --agent all --target-dir <output_dir>
-./bin/codemem-upgrade --agent cursor --target-dir <project_dir>
-./bin/codemem-upgrade --agent codex --target-dir <project_dir> --pull true
-./bin/codemem-projects
+codemem build --project <project_name> --lang zh
+codemem package --project <project_name> --version <version> --lang zh
+codemem agent install
+codemem agent install --agent codex --target-dir <project_dir>
+codemem agent detect --agent codex --target-dir <project_dir>
+codemem agent export --agent all --target-dir <output_dir>
+codemem upgrade --agent cursor --target-dir <project_dir>
+codemem upgrade --agent codex --target-dir <project_dir> --pull true
+codemem projects
 ```
 
-推荐优先使用 `codemem-agent install` 给指定 code agent 安装集成。未传 `--skill-dir` 时，安装器会先自动探测常见 agent 安装位置；在交互式终端里如果探测到非默认目录，还会先让你确认；之后再在项目开发过程中让 AI 负责初始化、记录规范和建议更新文档。
+## 给别人安装
 
-如果你已经在本机装好了 `codemem` 集成，后续更新最简单的方式是直接进入目标项目目录执行 `./bin/codemem-upgrade`。当未传 `--agent` 和 `--target-dir` 时，它会优先把当前工作目录当成目标项目，并根据已安装集成自动识别当前 agent。
+推荐给别人一个安装脚本入口。脚本会自动拉取 `codemem` 项目、构建 CLI、写入全局 `codemem` 命令，并安装对应 agent 集成。
+
+如果脚本已经发布在 GitHub，可以让对方在目标项目目录直接执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh | CODEMEM_REPO_URL=https://github.com/fzf926/codemem.git bash -s -- --agent cursor --target-dir .
+```
+
+如果对方已经拿到了源码仓库，也可以执行：
+
+```bash
+bash scripts/install.sh --agent cursor --target-dir <project_dir>
+```
+
+如果对方没有 GitHub SSH 权限，可以换成 HTTPS 源：
+
+```bash
+CODEMEM_REPO_URL=https://github.com/fzf926/codemem.git bash scripts/install.sh --agent cursor --target-dir <project_dir>
+```
+
+安装完成后，用户日常不需要进入源码目录，也不需要使用 `./bin/...`：
+
+```bash
+codemem agent install --agent cursor --target-dir <project_dir>
+codemem upgrade
+codemem projects
+```
+
+推荐优先使用 `codemem agent install` 给指定 code agent 安装集成。未传 `--skill-dir` 时，安装器会先自动探测常见 agent 安装位置；在交互式终端里如果探测到非默认目录，还会先让你确认；之后再在项目开发过程中让 AI 负责初始化、记录规范和建议更新文档。
+
+如果你已经在本机装好了 `codemem` 集成，后续更新最简单的方式是直接进入目标项目目录执行 `codemem upgrade`。当未传 `--agent` 和 `--target-dir` 时，它会优先把当前工作目录当成目标项目，并根据已安装集成自动识别当前 agent。
 
 ## 更多命令说明
 

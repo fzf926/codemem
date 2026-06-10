@@ -6,6 +6,7 @@ import {
   renderArgumentReference,
   renderInstallPolicy,
   renderOutputs,
+  renderPublicCommandName,
 } from "../core/src/cli/doc-render";
 
 const root = process.cwd();
@@ -13,7 +14,7 @@ const skillDir = join(root, "skills", "codemem");
 const template = readFileSync(join(skillDir, "SKILL.md.tmpl"), "utf8");
 
 const replacements: Record<string, string> = {
-  COMMANDS: commandSpecs.map((spec) => `- \`./bin/${spec.binName}\` - ${spec.summary}`).join("\n"),
+  COMMANDS: commandSpecs.map((spec) => `- \`${renderPublicCommandName(spec)}\` - ${spec.summary}`).join("\n"),
   INIT_COMMAND: formatExample(getCommandSpec("init").example),
   STATE_FILES: renderOutputs(getCommandSpec("init").outputs),
   CAPTURE_COMMAND: formatExample(getCommandSpec("capture").example),

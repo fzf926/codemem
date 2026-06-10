@@ -131,7 +131,7 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
     console.log(`Installed package into ${resolve(target)}`);
   },
   agent() {
-    throw new Error("codemem-agent uses its own entrypoint. Run ./bin/codemem-agent instead.");
+    throw new Error("codemem agent uses its own entrypoint. Run `codemem agent` instead.");
   },
   upgrade({ args, rootDir }) {
     const targetDir = resolveDirectoryArg(args.get("target-dir"));
@@ -169,7 +169,7 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
     });
 
     if (result.exitCode !== 0) {
-      throw new Error("codemem-upgrade failed while reinstalling agent resources.");
+      throw new Error("codemem upgrade failed while reinstalling agent resources.");
     }
 
     console.log("Updated codemem global resources");

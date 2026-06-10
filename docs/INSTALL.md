@@ -4,7 +4,7 @@
 
 ## 1. 适用场景
 
-当你希望把某个项目里沉淀出的开发规范分享给其他项目时，推荐优先使用新的 `codemem-agent` 流程。它可以把 `codemem` 作为 agent 集成安装到 `Codex`、`Cursor` 或 `Claude Code` 中，让 AI 在当前项目里自动完成初始化、记录规范，并在需要时建议更新文档。
+当你希望把某个项目里沉淀出的开发规范分享给其他项目时，推荐优先使用 `codemem` 全局命令。它可以把 `codemem` 作为 agent 集成安装到 `Codex`、`Cursor` 或 `Claude Code` 中，让 AI 在当前项目里自动完成初始化、记录规范，并默认一轮生成规范文档。
 
 如果你只是要分发一个可分享安装包给别人，也可以继续使用后半部分的“导出安装包”流程。
 
@@ -12,24 +12,72 @@
 
 规范提供方需要：
 
-- 能运行当前仓库中的 `codemem` 命令
+- 能运行全局 `codemem` 命令，或能运行当前仓库中的安装脚本
 - 已完成项目初始化
 - 已录入规范并生成文档
 
 规范使用方需要：
 
-- Node.js 18 或更高版本
+- Bun 1.0 或更高版本
+- Git
 - 一个可写入的目标项目目录
-- 从你这里拿到安装包文件
+- 从你这里拿到安装脚本，或拿到离线安装包文件
 
-## 3. 最简流程：直接给指定 agent 安装集成
+## 3. 推荐分发方式：给别人一个安装脚本
+
+你给别人的首选产物是仓库里的安装脚本：
+
+```bash
+scripts/install.sh
+```
+
+如果脚本已经发布在 GitHub，对方在自己的目标项目目录里执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh | CODEMEM_REPO_URL=https://github.com/fzf926/codemem.git bash -s -- --agent cursor --target-dir .
+```
+
+如果对方已经拿到了源码仓库，也可以执行：
+
+```bash
+bash scripts/install.sh --agent cursor --target-dir .
+```
+
+这个脚本会自动：
+
+- clone 或更新 `codemem` 源码到 `~/.codemem/source`
+- 执行 `bash scripts/build.sh`
+- 写入全局命令 `~/.local/bin/codemem`
+- 安装或刷新 `~/.codex/skills/codemem/` 下的 skill、runtime 和 templates
+
+如果对方通过 GitHub HTTPS 拉取源码，可以这样执行：
+
+```bash
+CODEMEM_REPO_URL=https://github.com/fzf926/codemem.git bash scripts/install.sh --agent cursor --target-dir .
+```
+
+安装后，用户日常只需要使用：
+
+```bash
+codemem upgrade
+codemem agent detect --agent cursor --target-dir .
+codemem projects
+```
+
+如果终端提示找不到 `codemem`，把 `~/.local/bin` 加到 `PATH`：
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+## 4. 已安装后的最简流程：直接给指定 agent 安装集成
 
 这是现在最推荐的使用方式。
 
 ### 第一步：执行统一安装器
 
 ```bash
-./bin/codemem-agent install
+codemem agent install
 ```
 
 CLI 会让你选择目标 agent：
@@ -41,9 +89,9 @@ CLI 会让你选择目标 agent：
 也可以直接非交互执行：
 
 ```bash
-./bin/codemem-agent install --agent codex --target-dir /path/to/target-project
-./bin/codemem-agent install --agent cursor --target-dir /path/to/target-project
-./bin/codemem-agent install --agent claude-code --target-dir /path/to/target-project
+codemem agent install --agent codex --target-dir /path/to/target-project
+codemem agent install --agent cursor --target-dir /path/to/target-project
+codemem agent install --agent claude-code --target-dir /path/to/target-project
 ```
 
 ### 第二步：安装器会做什么
@@ -81,16 +129,17 @@ AI 的默认行为是：
 - 自动判断当前项目是否需要初始化
 - 自动推断项目名称；不确定时才追问
 - 在开发过程中记录稳定规范
-- 当检测到规范变更时，先建议更新文档，再等待你确认执行
+- 默认一轮完成初始化、规范记录和文档生成
+- 只有项目身份不确定、可能覆盖重要内容、或冲突无法安全决策时才打断确认
 
 ### 第四步：检测当前接入状态
 
 如果你想确认当前项目和当前 agent 是否已经接好，可以执行：
 
 ```bash
-./bin/codemem-agent detect --agent codex --target-dir /path/to/target-project
-./bin/codemem-agent detect --agent cursor --target-dir /path/to/target-project
-./bin/codemem-agent detect --agent claude-code --target-dir /path/to/target-project
+codemem agent detect --agent codex --target-dir /path/to/target-project
+codemem agent detect --agent cursor --target-dir /path/to/target-project
+codemem agent detect --agent claude-code --target-dir /path/to/target-project
 ```
 
 输出会显示：
@@ -112,7 +161,7 @@ AI 的默认行为是：
 如果你要在脚本或 CI 中消费检测结果，可以加：
 
 ```bash
-./bin/codemem-agent detect --agent codex --target-dir /path/to/target-project --json
+codemem agent detect --agent codex --target-dir /path/to/target-project --json
 ```
 
 ### 第五步：后续待办
@@ -125,13 +174,13 @@ AI 的默认行为是：
 如果你本机已经装好了 `codemem` 的 agent 集成，后续更新最推荐直接使用：
 
 ```bash
-./bin/codemem-upgrade --agent cursor --target-dir /path/to/target-project --lang zh
+codemem upgrade --agent cursor --target-dir /path/to/target-project --lang zh
 ```
 
 如果你当前终端已经在目标项目目录下，而且本机已安装对应 agent 集成，也可以直接：
 
 ```bash
-./bin/codemem-upgrade
+codemem upgrade
 ```
 
 这时它会自动：
@@ -144,17 +193,17 @@ AI 的默认行为是：
 如果你希望更新前先拉最新代码，可以执行：
 
 ```bash
-./bin/codemem-upgrade --pull true
+codemem upgrade --pull true
 ```
 
-## 4. 提供方流程：生成并分享安装包
+## 5. 提供方流程：生成并分享安装包
 
 ### 第一步：初始化项目
 
 如果当前项目还没有接入 `codemem`，先执行：
 
 ```bash
-./bin/codemem-init --project <project_name> --owner <owner_name>
+codemem init --project <project_name> --owner <owner_name>
 ```
 
 ### 第二步：持续记录开发规范
@@ -162,7 +211,7 @@ AI 的默认行为是：
 在开发过程中，把约定逐条录入：
 
 ```bash
-./bin/codemem-capture \
+codemem capture \
   --project <project_name> \
   --type code \
   --title "组件命名规则" \
@@ -181,7 +230,7 @@ AI 的默认行为是：
 ### 第三步：生成规范文档
 
 ```bash
-./bin/codemem-build --project <project_name> --lang zh
+codemem build --project <project_name> --lang zh
 ```
 
 生成产物位于 `.codemem/docs/`：
@@ -193,7 +242,7 @@ AI 的默认行为是：
 ### 第四步：生成分享安装包
 
 ```bash
-./bin/codemem-package --project <project_name> --version <version> --lang zh
+codemem package --project <project_name> --version <version> --lang zh
 ```
 
 生成产物位于 `.codemem/_system/packages/standards/`：
@@ -221,22 +270,22 @@ AI 的默认行为是：
 
 使用方拿到安装包后，有两种方式。
 
-### 方式 A：通过 `codemem-agent install` 安装 agent 集成
+### 方式 A：通过 `codemem agent install` 安装 agent 集成
 
 如果对方也拿到了当前仓库，最推荐直接执行：
 
 ```bash
-./bin/codemem-agent install --agent codex --target-dir /path/to/target-project
+codemem agent install --agent codex --target-dir /path/to/target-project
 ```
 
 或者：
 
 ```bash
-./bin/codemem-agent install --agent cursor --target-dir /path/to/target-project
-./bin/codemem-agent install --agent claude-code --target-dir /path/to/target-project
+codemem agent install --agent cursor --target-dir /path/to/target-project
+codemem agent install --agent claude-code --target-dir /path/to/target-project
 ```
 
-### 方式 B：通过 `codemem-install` 安装旧版共享规范包
+### 方式 B：通过 `codemem install` 安装旧版共享规范包
 
 这适合已经在本地具备 `codemem` 运行环境的团队。
 
@@ -251,7 +300,7 @@ AI 的默认行为是：
 #### 第二步：执行安装
 
 ```bash
-./bin/codemem-install \
+codemem install \
   --package /path/to/shared-standard-<project>-<version>.tgz \
   --target /path/to/target-project \
   --project <target_project_name> \
@@ -269,7 +318,7 @@ AI 的默认行为是：
 如果是在脚本、CI 或其他工具链中调用，建议使用：
 
 ```bash
-./bin/codemem-install \
+codemem install \
   --package /path/to/shared-standard-<project>-<version>.tgz \
   --target /path/to/target-project \
   --project <target_project_name> \
@@ -373,7 +422,7 @@ ls -la /path/to/target-project/.codemem
 如果你通过主 CLI 安装，可以在源仓库里查看已接入项目：
 
 ```bash
-./bin/codemem-projects
+codemem projects
 ```
 
 ## 8. 升级、降级、重装规则
@@ -389,7 +438,7 @@ ls -la /path/to/target-project/.codemem
 示例：
 
 ```bash
-./bin/codemem-install \
+codemem install \
   --package /path/to/shared-standard-demo-1.1.0.tgz \
   --target /path/to/target-project \
   --project target-project \
@@ -420,19 +469,19 @@ cat /path/to/shared-standard-<project>-<version>.tgz.sha256
 如果你希望把 agent 集成能力整体打包给别人使用，可以执行：
 
 ```bash
-./bin/codemem-agent export --agent all --target-dir /path/to/output --version 1.0.0
+codemem agent export --agent all --target-dir /path/to/output --version 1.0.0
 ```
 
 也可以只导出某一个 agent：
 
 ```bash
-./bin/codemem-agent export --agent codex --target-dir /path/to/output --version 1.0.0
+codemem agent export --agent codex --target-dir /path/to/output --version 1.0.0
 ```
 
 如果要在脚本中读取导出结果：
 
 ```bash
-./bin/codemem-agent export --agent codex --target-dir /path/to/output --version 1.0.0 --json
+codemem agent export --agent codex --target-dir /path/to/output --version 1.0.0 --json
 ```
 
 导出产物会包含：
@@ -457,7 +506,7 @@ node install.mjs --agent codex --target-dir /path/to/target-project
 ```text
 1. 安装要求：Node.js >= 18
 2. 你会收到一个 .tgz 安装包和一个 .sha256 校验文件
-3. 如果你有 codemem CLI，优先使用 codemem-install 安装
+3. 如果你有 codemem CLI，优先使用 codemem install 安装
 4. 如果没有，也可以解压后直接执行 install.mjs
 5. 安装完成后，目标项目的 .codemem/ 目录中会留下规范文档和安装记录
 ```
@@ -467,24 +516,24 @@ node install.mjs --agent codex --target-dir /path/to/target-project
 推荐入口：
 
 ```bash
-./bin/codemem-agent install
-./bin/codemem-agent detect --agent codex --target-dir /path/to/target-project
-./bin/codemem-agent export --agent all --target-dir /path/to/output --version 1.0.0
+codemem agent install
+codemem agent detect --agent codex --target-dir /path/to/target-project
+codemem agent export --agent all --target-dir /path/to/output --version 1.0.0
 ```
 
 提供方：
 
 ```bash
-./bin/codemem-init --project demo --owner cm
-./bin/codemem-capture --project demo --type code --title "命名规则" --rule "组件使用 PascalCase" --priority P1 --status active --scope global
-./bin/codemem-build --project demo --lang zh
-./bin/codemem-package --project demo --version 1.0.0 --lang zh
+codemem init --project demo --owner cm
+codemem capture --project demo --type code --title "命名规则" --rule "组件使用 PascalCase" --priority P1 --status active --scope global
+codemem build --project demo --lang zh
+codemem package --project demo --version 1.0.0 --lang zh
 ```
 
 使用方：
 
 ```bash
-./bin/codemem-install \
+codemem install \
   --package /path/to/shared-standard-demo-1.0.0.tgz \
   --target /path/to/target-project \
   --project target-project \

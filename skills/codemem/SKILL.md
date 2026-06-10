@@ -18,21 +18,21 @@ Use this skill to turn development conventions into reusable project assets:
 
 ## Commands
 
-- `./bin/codemem-init` - initialize a project and register it
-- `./bin/codemem-capture` - append one development standard
-- `./bin/codemem-build` - generate standard documents
-- `./bin/codemem-package` - build a shareable package directory and .tgz
-- `./bin/codemem-install` - install a shared package into another project
-- `./bin/codemem-agent` - install or export agent-specific codemem integrations
-- `./bin/codemem-upgrade` - rebuild codemem and reinstall the latest shared agent resources
-- `./bin/codemem-projects` - list configured projects
+- `codemem init` - initialize a project and register it
+- `codemem capture` - append one development standard
+- `codemem build` - generate standard documents
+- `codemem package` - build a shareable package directory and .tgz
+- `codemem install` - install a shared package into another project
+- `codemem agent` - install or export agent-specific codemem integrations
+- `codemem upgrade` - rebuild codemem and reinstall the latest shared agent resources
+- `codemem projects` - list configured projects
 
 ## Workflow
 
 ### Step 1: Initialize a project
 
 ```bash
-./bin/codemem-init --project <project_name> --owner <owner_name>
+codemem init --project <project_name> --owner <owner_name>
 ```
 
 State created:
@@ -44,7 +44,7 @@ State created:
 ### Step 2: Capture standards during development
 
 ```bash
-./bin/codemem-capture \
+codemem capture \
   --project <project_name> \
   --type <general|architecture|code|api|data|security|testing|docs|ops|release> \
   --title "short title" \
@@ -63,7 +63,7 @@ Guidelines:
 ### Step 3: Build documents
 
 ```bash
-./bin/codemem-build --project <project_name> --lang zh
+codemem build --project <project_name> --lang zh
 ```
 
 Outputs:
@@ -75,7 +75,7 @@ Outputs:
 ### Step 4: Package the shared standard
 
 ```bash
-./bin/codemem-package --project <project_name> --version <version> --lang zh
+codemem package --project <project_name> --version <version> --lang zh
 ```
 
 Outputs:
@@ -88,7 +88,7 @@ Outputs:
 ### Step 5: Install a shared package into another project
 
 ```bash
-./bin/codemem-install \
+codemem install \
   --package <package_dir_or_tgz> \
   --target <target_project_dir> \
   --project <target_project_name> \
@@ -106,7 +106,7 @@ Install policy:
 ### Step 6: Inspect configured projects
 
 ```bash
-./bin/codemem-projects
+codemem projects
 ```
 
 ## Runtime Layout
@@ -120,7 +120,7 @@ Install policy:
 
 ## Argument reference
 
-### `codemem-init`
+### `codemem init`
 
 | Argument | Required | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -128,7 +128,7 @@ Install policy:
 | `--owner` | Optional | `unknown` | - | project owner recorded in the registry |
 | `--project-path` | Optional | `current working directory` | - | absolute or relative path of the project being registered |
 
-### `codemem-capture`
+### `codemem capture`
 
 | Argument | Required | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -142,7 +142,7 @@ Install policy:
 | `--source` | Optional | `manual` | - | where the rule came from, for traceability |
 | `--lang` | Optional | `zh` | `zh`, `en` | language used in generated labels and copy |
 
-### `codemem-build`
+### `codemem build`
 
 | Argument | Required | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -150,7 +150,7 @@ Install policy:
 | `--lang` | Optional | `zh` | `zh`, `en` | language used for generated document copy |
 | `--include-drafts` | Optional | `false` | `true`, `false` | include draft rules in the generated output |
 
-### `codemem-package`
+### `codemem package`
 
 | Argument | Required | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -159,7 +159,7 @@ Install policy:
 | `--lang` | Optional | `zh` | `zh`, `en` | language used for package-side generated documents |
 | `--package-id` | Optional | `shared-standard-<project>` | - | custom package id override for the generated artifact |
 
-### `codemem-install`
+### `codemem install`
 
 | Argument | Required | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -171,7 +171,7 @@ Install policy:
 | `--allow-downgrade` | Optional | `false` | `true`, `false` | allow installing an older version over a newer installed version |
 | `--json` | Optional | `false` | `true`, `false` | print machine-readable install output |
 
-### `codemem-agent`
+### `codemem agent`
 
 | Argument | Required | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -183,7 +183,7 @@ Install policy:
 | `--lang` | Optional | `zh` | `zh`, `en` | language used in generated prompts and guidance |
 | `--json` | Optional | `false` | `true`, `false` | print machine-readable output for install, detect, or export |
 
-### `codemem-upgrade`
+### `codemem upgrade`
 
 | Argument | Required | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
@@ -193,7 +193,7 @@ Install policy:
 | `--lang` | Optional | `zh` | `zh`, `en` | language used in regenerated prompts and guidance |
 | `--pull` | Optional | `false` | `true`, `false` | run git pull --ff-only before rebuilding and reinstalling |
 
-### `codemem-projects`
+### `codemem projects`
 
 | Argument | Required | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |

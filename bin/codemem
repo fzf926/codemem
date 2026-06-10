@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  SOURCE_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  LINK_TARGET="$(readlink "$SOURCE")"
+  if [[ "$LINK_TARGET" == /* ]]; then
+    SOURCE="$LINK_TARGET"
+  else
+    SOURCE="$SOURCE_DIR/$LINK_TARGET"
+  fi
+done
+
+ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+
+usage() {
+  cat <<'EOF'
+codemem
+
+Usage:
+  codemem <command> [args]
+
+Commands:
+  init       Initialize a project
+  capture    Capture one development standard
+  build      Generate standards documents
+  package    Build a shareable standards package
+  install    Install a shared standards package
+  agent      Install, detect, or export agent integrations
+  upgrade    Pull, rebuild, and refresh the installed agent integration
+  projects   List configured projects
+
+Examples:
+  codemem agent install --agent cursor --target-dir .
+  codemem upgrade
+  codemem build --project my-project --lang zh
+EOF
+}
+
+if [ "$#" -eq 0 ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+  usage
+  exit 0
+fi
+
+COMMAND="$1"
+shift
+
+case "$COMMAND" in
+  init|capture|build|package|install|upgrade|projects)
+    BIN="$ROOT/bin/codemem-$COMMAND"
+    ;;
+  agent)
+    BIN="$ROOT/bin/codemem-agent"
+    ;;
+  *)
+    echo "codemem: unknown command '$COMMAND'" >&2
+    echo >&2
+    usage >&2
+    exit 1
+    ;;
+esac
+
+exec "$BIN" "$@"

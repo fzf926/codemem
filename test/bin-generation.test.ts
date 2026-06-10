@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { commandSpecs, getCliSource } from "../core/src/cli/command-registry";
 
 describe("generated bin wrappers", () => {
@@ -13,5 +14,29 @@ describe("generated bin wrappers", () => {
       expect(wrapper).toContain(`core/dist/${spec.binName}`);
       expect(wrapper).toContain(`bun run ${getCliSource(spec.id)} "$@" --root "$ROOT"`);
     }
+  });
+
+  test("includes the global codemem dispatcher and install script", () => {
+    const root = process.cwd();
+    const dispatcher = join(root, "bin", "codemem");
+    const installer = join(root, "scripts", "install.sh");
+
+    expect(existsSync(dispatcher)).toBe(true);
+    expect(existsSync(installer)).toBe(true);
+    expect(readFileSync(dispatcher, "utf8")).toContain("codemem <command> [args]");
+    expect(readFileSync(installer, "utf8")).toContain("CODEMEM_REPO_URL");
+
+    const dispatcherHelp = spawnSync(dispatcher, ["--help"], {
+      cwd: root,
+      encoding: "utf8",
+    });
+    expect(dispatcherHelp.status).toBe(0);
+    expect(dispatcherHelp.stdout).toContain("codemem upgrade");
+
+    const installerCheck = spawnSync("bash", ["-n", installer], {
+      cwd: root,
+      encoding: "utf8",
+    });
+    expect(installerCheck.status).toBe(0);
   });
 });
