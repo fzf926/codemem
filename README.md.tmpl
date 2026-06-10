@@ -34,29 +34,29 @@ flowchart TD
 
 {{README_COMMANDS}}
 
-## 给别人安装
+## 安装使用
 
-推荐给别人一个安装脚本入口。脚本会自动拉取 `codemem` 项目、构建 CLI、写入全局 `codemem` 命令，把命令目录加入 shell profile，并安装对应 agent 集成。
+推荐你直接使用一键安装脚本。脚本会自动拉取 `codemem` 项目、构建 CLI、写入全局 `codemem` 命令，把命令目录加入 shell profile，并安装对应 agent 集成。
 
-如果脚本已经发布在 GitHub，可以让对方在目标项目目录直接执行：
+如果脚本已经发布在 GitHub，你可以在目标项目目录直接执行：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh | CODEMEM_REPO_URL=https://github.com/fzf926/codemem.git bash -s -- --agent cursor --target-dir .
 ```
 
-如果对方已经拿到了源码仓库，也可以执行：
+如果你已经拿到了源码仓库，也可以执行：
 
 ```bash
 bash scripts/install.sh --agent cursor --target-dir <project_dir>
 ```
 
-如果对方没有 GitHub SSH 权限，可以换成 HTTPS 源：
+如果你没有 GitHub SSH 权限，可以换成 HTTPS 源：
 
 ```bash
 CODEMEM_REPO_URL=https://github.com/fzf926/codemem.git bash scripts/install.sh --agent cursor --target-dir <project_dir>
 ```
 
-安装完成后，用户日常不需要进入源码目录，也不需要使用 `./bin/...`：
+安装完成后，你日常不需要进入源码目录，也不需要使用 `./bin/...`：
 
 ```bash
 codemem agent install --agent cursor --target-dir <project_dir>
@@ -74,7 +74,7 @@ codemem projects
 
 ## 完整安装与使用流程
 
-给其他团队或项目使用时，推荐直接阅读 [docs/INSTALL.md](docs/INSTALL.md)。
+如果你要安装到更多项目，推荐直接阅读 [docs/INSTALL.md](docs/INSTALL.md)。
 
 ## 安装策略
 
