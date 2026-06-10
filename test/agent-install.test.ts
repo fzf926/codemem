@@ -37,8 +37,10 @@ describe("agent install and export", () => {
       expect(content).toContain(".codemem/docs/global/global-standard.md");
       expect(content).toContain(".codemem/docs/projects/project-standard.<project_name>.md");
       expect(content).toContain("优先读取已有规范文档");
-      expect(content).toContain("默认一轮执行到底");
+      expect(content).toContain("默认把请求范围内显然该做的事情一轮做完");
       expect(content).toContain("只有高风险决策才停下来确认");
+      expect(content).toContain("不要用“如果你要，我可以继续");
+      expect(content).toContain("先做完再最终汇报");
     } finally {
       process.env.HOME = previousHome;
     }
@@ -66,7 +68,8 @@ describe("agent install and export", () => {
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("name: codemem");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("runtime/bin/codemem-init");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain(".codemem/docs/global/global-standard.md");
-    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("默认连续完成初始化、规范记录和文档生成");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("默认连续完成初始化、规范记录、项目扫描和文档生成");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要把明显低风险的后续工作包装成");
     expect(readFileSync(join(skillDir, "agents", "openai.yaml"), "utf8")).toContain("display_name: \"Codemem Standards\"");
   });
 
@@ -85,7 +88,8 @@ describe("agent install and export", () => {
     expect(existsSync(join(targetDir, ".claude", "commands", "codemem.md"))).toBe(true);
     expect(readFileSync(result.integrationPath, "utf8")).toContain("/codemem");
     expect(readFileSync(result.integrationPath, "utf8")).toContain(".codemem/docs/global/global-standard.md");
-    expect(readFileSync(result.integrationPath, "utf8")).toContain("默认一轮执行到底");
+    expect(readFileSync(result.integrationPath, "utf8")).toContain("默认把请求范围内显然该做的事情一轮做完");
+    expect(readFileSync(result.integrationPath, "utf8")).toContain("如果你要，我可以继续");
   });
 
   test("exports a shareable agent package with installer and digest", () => {
