@@ -48,6 +48,7 @@ bash scripts/install.sh --agent cursor --target-dir .
 - clone 或更新 `codemem` 源码到 `~/.codemem/source`
 - 执行 `bash scripts/build.sh`
 - 写入全局命令 `~/.local/bin/codemem`
+- 把 `~/.local/bin` 加入 shell profile，例如 `~/.zshrc`
 - 安装或刷新 `~/.codex/skills/codemem/` 下的 skill、runtime 和 templates
 
 如果对方通过 GitHub HTTPS 拉取源码，可以这样执行：

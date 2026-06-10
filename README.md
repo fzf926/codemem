@@ -54,7 +54,7 @@ codemem projects
 
 ## 给别人安装
 
-推荐给别人一个安装脚本入口。脚本会自动拉取 `codemem` 项目、构建 CLI、写入全局 `codemem` 命令，并安装对应 agent 集成。
+推荐给别人一个安装脚本入口。脚本会自动拉取 `codemem` 项目、构建 CLI、写入全局 `codemem` 命令，把命令目录加入 shell profile，并安装对应 agent 集成。
 
 如果脚本已经发布在 GitHub，可以让对方在目标项目目录直接执行：
 

@@ -7,6 +7,7 @@ BIN_DIR="${CODEMEM_BIN_DIR:-$HOME/.local/bin}"
 AGENT="${CODEMEM_AGENT:-cursor}"
 TARGET_DIR="$PWD"
 LANGUAGE="${CODEMEM_LANG:-zh}"
+PROFILE_FILE="${CODEMEM_PROFILE:-}"
 
 usage() {
   cat <<'EOF'
@@ -22,6 +23,7 @@ Options:
   --agent <agent>        codex, cursor, or claude-code. Defaults to cursor
   --target-dir <dir>     Project directory used for agent installation. Defaults to current directory
   --lang <zh|en>         Prompt language. Defaults to zh
+  --profile <file>       Shell profile to update. Defaults to ~/.zshrc or ~/.bashrc
   -h, --help             Show this help
 
 Environment overrides:
@@ -30,6 +32,7 @@ Environment overrides:
   CODEMEM_BIN_DIR
   CODEMEM_AGENT
   CODEMEM_LANG
+  CODEMEM_PROFILE
 EOF
 }
 
@@ -57,6 +60,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --lang)
       LANGUAGE="${2:?missing value for --lang}"
+      shift 2
+      ;;
+    --profile)
+      PROFILE_FILE="${2:?missing value for --profile}"
       shift 2
       ;;
     -h|--help)
@@ -96,6 +103,17 @@ done
 
 mkdir -p "$(dirname "$INSTALL_DIR")" "$BIN_DIR"
 
+if [ -z "$PROFILE_FILE" ]; then
+  case "$(basename "${SHELL:-}")" in
+    bash)
+      PROFILE_FILE="$HOME/.bashrc"
+      ;;
+    *)
+      PROFILE_FILE="$HOME/.zshrc"
+      ;;
+  esac
+fi
+
 if [ -d "$INSTALL_DIR/.git" ]; then
   echo "Updating codemem source in $INSTALL_DIR"
   git -C "$INSTALL_DIR" pull --ff-only
@@ -119,6 +137,18 @@ exec "$INSTALL_DIR/bin/codemem" "\$@"
 EOF
 chmod +x "$SHIM"
 
+if [ -n "$PROFILE_FILE" ]; then
+  touch "$PROFILE_FILE"
+  if ! grep -F "$BIN_DIR" "$PROFILE_FILE" >/dev/null 2>&1; then
+    {
+      echo ""
+      echo "# codemem global command"
+      echo "export PATH=\"$BIN_DIR:\$PATH\""
+    } >> "$PROFILE_FILE"
+    echo "Updated shell profile: $PROFILE_FILE"
+  fi
+fi
+
 echo "Installing codemem agent integration"
 "$INSTALL_DIR/bin/codemem" agent install --agent "$AGENT" --target-dir "$TARGET_DIR" --lang "$LANGUAGE"
 
@@ -126,9 +156,7 @@ echo
 echo "codemem installed successfully."
 echo "Command: $SHIM"
 echo
-if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
-  echo "Add this to your shell profile if codemem is not found:"
-  echo "  export PATH=\"$BIN_DIR:\$PATH\""
-fi
+echo "Open a new terminal, or run this now:"
+echo "  export PATH=\"$BIN_DIR:\$PATH\""
 echo "Next update command:"
 echo "  codemem upgrade"
