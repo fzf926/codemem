@@ -45,12 +45,19 @@ function buildSourcePackage(rootDir: string, version: string): { artifactDir: st
 
   expect(existsSync(initialized.agentsFile)).toBe(true);
   expect(existsSync(initialized.cursorRuleFile)).toBe(true);
+  expect(existsSync(initialized.gitignoreFile)).toBe(true);
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain(".codemem/docs/global/global-standard.md");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("Default to finishing initialization, standards capture, and document regeneration in one pass.");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("Do not end with optional follow-up offers for obvious low-risk work.");
+  expect(readFileSync(initialized.agentsFile, "utf8")).toContain("Aim to capture at least one evidenced rule per applicable checklist item");
+  expect(readFileSync(initialized.agentsFile, "utf8")).toContain("MapStruct usage");
+  expect(readFileSync(initialized.agentsFile, "utf8")).toContain("module extension rules for adding new business modules");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("project-standard.source-project.md");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("Default to finishing initialization, standards capture, and document regeneration in one pass.");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("Do not end with optional follow-up offers for obvious low-risk work.");
+  expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("Aim to capture at least one evidenced rule per applicable checklist item");
+  expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("pagination queries");
+  expect(readFileSync(initialized.gitignoreFile, "utf8")).toContain(".codemem/");
 
   captureDocsRule(rootDir, "source-project");
 
@@ -489,5 +496,45 @@ describe("package and install flow", () => {
     } finally {
       rmSync(sourceRoot, { recursive: true, force: true });
     }
+  });
+});
+
+describe("project init guidance", () => {
+  test("adds .codemem to .gitignore only once", () => {
+    const root = makeRoot("codemem-gitignore-");
+    prepareRoot(root);
+
+    initProject({
+      rootDir: root,
+      project: "gitignore-project",
+      owner: "cm",
+      projectPath: root,
+    });
+    initProject({
+      rootDir: root,
+      project: "gitignore-project",
+      owner: "cm",
+      projectPath: root,
+    });
+
+    const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
+    expect(gitignore.split(/\r?\n/).filter((line) => line.trim() === ".codemem/")).toHaveLength(1);
+  });
+
+  test("preserves existing .gitignore entries", () => {
+    const root = makeRoot("codemem-existing-gitignore-");
+    prepareRoot(root);
+    writeFileSync(join(root, ".gitignore"), "node_modules\n");
+
+    initProject({
+      rootDir: root,
+      project: "existing-gitignore-project",
+      owner: "cm",
+      projectPath: root,
+    });
+
+    const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
+    expect(gitignore).toContain("node_modules");
+    expect(gitignore).toContain(".codemem/");
   });
 });

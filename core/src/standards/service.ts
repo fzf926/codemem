@@ -43,6 +43,14 @@ export interface BuildOptions {
   includeDrafts: boolean;
 }
 
+export interface InitResult {
+  metaFile: string;
+  logFile: string;
+  agentsFile: string;
+  cursorRuleFile: string;
+  gitignoreFile: string;
+}
+
 interface Rule {
   schema: number;
   ts: string;
@@ -245,6 +253,31 @@ function renderTemplate(template: string, values: Record<string, string>): strin
 
 const AGENTS_MANAGED_START = "<!-- codemem:managed:start -->";
 const AGENTS_MANAGED_END = "<!-- codemem:managed:end -->";
+const REQUIRED_SCAN_DIMENSIONS = [
+  "overall directory structure",
+  "architecture design principles",
+  "class naming conventions",
+  "method naming conventions",
+  "variable naming conventions",
+  "business layer boundaries",
+  "annotation usage",
+  "parameter validation",
+  "exception handling",
+  "data access",
+  "MapStruct usage",
+  "pagination queries",
+  "cache usage",
+  "enum and constant definitions",
+  "logging",
+  "performance requirements",
+  "null handling",
+  "unit testing",
+  "module extension rules for adding new business modules",
+];
+
+function renderRequiredScanDimensions(): string[] {
+  return REQUIRED_SCAN_DIMENSIONS.map((item) => `  - ${item}`);
+}
 
 function renderAgentsSection(project: string): string {
   return [
@@ -264,6 +297,9 @@ function renderAgentsSection(project: string): string {
     "- If the conflict report shows unresolved contradictions, do not silently pick one. Call out the conflict and ask for confirmation when the choice matters.",
     "- If standards docs are missing, initialize or regenerate them through the local codemem CLI before relying on unstated conventions.",
     "- Default to finishing initialization, standards capture, and document regeneration in one pass.",
+    "- During initialization scans, cover this required checklist before deciding the scan is complete:",
+    ...renderRequiredScanDimensions(),
+    "- Aim to capture at least one evidenced rule per applicable checklist item and 20-40 well-supported standards on a normal project. If fewer than 20 are captured, explain what evidence was missing.",
     "- Do not end with optional follow-up offers for obvious low-risk work. If the next step is clearly part of the user's request, complete it before the final response.",
     "- Only pause for confirmation when project identity is uncertain, a change would overwrite meaningful user content, or a standards conflict cannot be resolved safely.",
     AGENTS_MANAGED_END,
@@ -321,6 +357,9 @@ function syncCursorRule(rootDir: string, project: string): string {
     "Use those documents as the default project conventions before proposing code or workflow changes.",
     "",
     "Default to finishing initialization, standards capture, and document regeneration in one pass.",
+    "During initialization scans, cover this required checklist before deciding the scan is complete:",
+    ...renderRequiredScanDimensions(),
+    "Aim to capture at least one evidenced rule per applicable checklist item and 20-40 well-supported standards on a normal project. If fewer than 20 are captured, explain what evidence was missing.",
     "Do not end with optional follow-up offers for obvious low-risk work. If the next step is clearly part of the user's request, complete it before the final response.",
     "Only pause for confirmation when project identity is uncertain, a change would overwrite meaningful user content, or a standards conflict cannot be resolved safely.",
     "",
@@ -328,7 +367,30 @@ function syncCursorRule(rootDir: string, project: string): string {
   return ruleFile;
 }
 
-export function initProject(options: InitOptions): { metaFile: string; logFile: string; agentsFile: string; cursorRuleFile: string } {
+function syncGitignore(rootDir: string): string {
+  const gitignoreFile = join(rootDir, ".gitignore");
+  const entry = ".codemem/";
+
+  if (!existsSync(gitignoreFile)) {
+    writeFileSync(gitignoreFile, `${entry}\n`);
+    return gitignoreFile;
+  }
+
+  const existing = readFileSync(gitignoreFile, "utf8");
+  const hasEntry = existing
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .some((line) => line === entry || line === ".codemem");
+
+  if (!hasEntry) {
+    const separator = existing.endsWith("\n") || existing.length === 0 ? "" : "\n";
+    writeFileSync(gitignoreFile, `${existing}${separator}${entry}\n`);
+  }
+
+  return gitignoreFile;
+}
+
+export function initProject(options: InitOptions): InitResult {
   migrateLegacyStateLayout(options.rootDir);
   const metaDir = getMetaDir(options.rootDir);
   const logsDir = getLogsDir(options.rootDir);
@@ -364,8 +426,9 @@ export function initProject(options: InitOptions): { metaFile: string; logFile: 
 
   const agentsFile = syncAgentsGuide(options.rootDir, options.project);
   const cursorRuleFile = syncCursorRule(options.rootDir, options.project);
+  const gitignoreFile = syncGitignore(options.rootDir);
 
-  return { metaFile, logFile, agentsFile, cursorRuleFile };
+  return { metaFile, logFile, agentsFile, cursorRuleFile, gitignoreFile };
 }
 
 export function captureRule(options: CaptureOptions): string {

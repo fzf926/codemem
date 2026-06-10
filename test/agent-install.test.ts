@@ -41,6 +41,15 @@ describe("agent install and export", () => {
       expect(content).toContain("只有高风险决策才停下来确认");
       expect(content).toContain("不要用“如果你要，我可以继续");
       expect(content).toContain("先做完再最终汇报");
+      expect(content).toContain("每个适用清单项至少沉淀 1 条");
+      expect(content).toContain("20-40 条规范");
+      expect(content).toContain("如果初始化扫描少于 20 条规范");
+      expect(content).toContain("整体的目录结构规范");
+      expect(content).toContain("类命名规范");
+      expect(content).toContain("方法命名规范");
+      expect(content).toContain("MapStruct 使用规范");
+      expect(content).toContain("分页查询规范");
+      expect(content).toContain("模块扩展规范");
     } finally {
       process.env.HOME = previousHome;
     }
@@ -70,6 +79,8 @@ describe("agent install and export", () => {
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain(".codemem/docs/global/global-standard.md");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("默认连续完成初始化、规范记录、项目扫描和文档生成");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要把明显低风险的后续工作包装成");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("固定清单中的每个适用维度");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("缓存使用规范");
     expect(readFileSync(join(skillDir, "agents", "openai.yaml"), "utf8")).toContain("display_name: \"Codemem Standards\"");
   });
 
@@ -90,6 +101,8 @@ describe("agent install and export", () => {
     expect(readFileSync(result.integrationPath, "utf8")).toContain(".codemem/docs/global/global-standard.md");
     expect(readFileSync(result.integrationPath, "utf8")).toContain("默认把请求范围内显然该做的事情一轮做完");
     expect(readFileSync(result.integrationPath, "utf8")).toContain("如果你要，我可以继续");
+    expect(readFileSync(result.integrationPath, "utf8")).toContain("普通项目初始化扫描目标是沉淀 20-40 条");
+    expect(readFileSync(result.integrationPath, "utf8")).toContain("枚举和常量定义规范");
   });
 
   test("exports a shareable agent package with installer and digest", () => {
