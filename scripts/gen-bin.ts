@@ -35,20 +35,40 @@ while [ -L "$SOURCE" ]; do
 done
 
 ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
-PROJECT_ROOT="$(pwd -P)"
 TEMPLATES_DIR="\${CODEMEM_TEMPLATES_DIR:-$ROOT/skills/codemem/templates}"
+
+resolve_project_root() {
+  if pwd -P >/dev/null 2>&1; then
+    pwd -P
+    return
+  fi
+
+  if [ -n "\${CODEMEM_FALLBACK_CWD:-}" ]; then
+    printf '%s\\n' "\$CODEMEM_FALLBACK_CWD"
+    return
+  fi
+
+  if [ -n "\${HOME:-}" ]; then
+    printf '%s\\n' "\$HOME"
+    return
+  fi
+
+  printf '%s\\n' "$ROOT"
+}
 
 run_project_command() {
   local command="$1"
   shift
+  local project_root
+  project_root="$(resolve_project_root)"
 
   if [ -x "$ROOT/core/dist/codemem-$command" ]; then
     exec env CODEMEM_TEMPLATES_DIR="$TEMPLATES_DIR" \\
-      "$ROOT/core/dist/codemem-$command" "$@" --root "$PROJECT_ROOT"
+      "$ROOT/core/dist/codemem-$command" "$@" --root "$project_root"
   fi
 
   exec env CODEMEM_TEMPLATES_DIR="$TEMPLATES_DIR" \\
-    bun run "$ROOT/core/src/cli/$command.ts" "$@" --root "$PROJECT_ROOT"
+    bun run "$ROOT/core/src/cli/$command.ts" "$@" --root "$project_root"
 }
 
 usage() {

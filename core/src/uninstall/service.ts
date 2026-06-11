@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { getInstallPaths, isManagedCodememShim, loadInstallMetadata } from "../install/service";
+import { safeCurrentWorkingDir } from "../shared/cwd";
 
 export interface UninstallOptions {
   homeDir?: string;
@@ -221,7 +222,7 @@ export function uninstallCodemem(options: UninstallOptions = {}): UninstallResul
   });
   const installDir = paths.managedInstallDir;
   const binDir = paths.binDir;
-  const targetDir = resolve(options.targetDir || process.cwd());
+  const targetDir = resolve(options.targetDir || safeCurrentWorkingDir());
   const profileFile = paths.profileFile || defaultProfileFile(homeDir);
   const dryRun = options.dryRun === true;
   const metadata = loadInstallMetadata({

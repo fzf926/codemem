@@ -6,6 +6,7 @@ import { buildPackage } from "../packaging/service";
 import { installPackage } from "../installer/service";
 import { uninstallCodemem } from "../uninstall/service";
 import { formatProjectsTable, listProjects } from "../registry/service";
+import { safeCurrentWorkingDir } from "../shared/cwd";
 import { run } from "../shared/process";
 import { buildStandards, captureRule, initProject } from "../standards/service";
 import type { CommandSpec } from "./command-registry";
@@ -20,7 +21,7 @@ type CommandHandler = (context: CommandContext) => void;
 
 function resolveDirectoryArg(value: string | undefined): string {
   if (!value || value === "current working directory") {
-    return process.cwd();
+    return safeCurrentWorkingDir();
   }
   return resolve(value);
 }
@@ -233,6 +234,6 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
 
 export function runCommand(id: CommandSpec["id"], argv = process.argv): void {
   const args = loadCommandArgs(id, argv);
-  const rootDir = resolve(args.get("root") || process.cwd());
+  const rootDir = resolve(args.get("root") || safeCurrentWorkingDir());
   commandHandlers[id]({ args, rootDir });
 }

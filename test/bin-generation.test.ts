@@ -34,7 +34,7 @@ describe("generated bin wrappers", () => {
     expect(dispatcherHelp.status).toBe(0);
     expect(dispatcherHelp.stdout).toContain("codemem upgrade");
     expect(dispatcherHelp.stdout).toContain("codemem uninstall --dry-run true");
-    expect(readFileSync(dispatcher, "utf8")).toContain("PROJECT_ROOT");
+    expect(readFileSync(dispatcher, "utf8")).toContain("resolve_project_root");
     expect(readFileSync(dispatcher, "utf8")).toContain("run_project_command");
 
     const installerCheck = spawnSync("bash", ["-n", installer], {
@@ -75,5 +75,26 @@ describe("generated bin wrappers", () => {
       rmSync(projectDir, { recursive: true, force: true });
       rmSync(globalDir, { recursive: true, force: true });
     }
+  });
+
+  test("keeps non-project commands runnable when the current working directory is gone", () => {
+    const root = process.cwd();
+    const dispatcher = join(root, "bin", "codemem");
+    const script = [
+      "set -euo pipefail",
+      'tmp="$(mktemp -d)"',
+      'mkdir -p "$tmp/gone"',
+      'cd "$tmp/gone"',
+      'rm -rf "$tmp"',
+      `"${dispatcher}" uninstall --dry-run true --target-dir "$HOME"`,
+    ].join("\n");
+
+    const result = spawnSync("bash", ["-lc", script], {
+      cwd: root,
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("codemem uninstall dry run");
   });
 });
