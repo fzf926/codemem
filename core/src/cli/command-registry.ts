@@ -298,7 +298,7 @@ export const commandSpecs: CommandSpec[] = [
     id: "upgrade",
     binName: "codemem-upgrade",
     devScript: "dev:upgrade",
-    summary: "rebuild codemem and reinstall the latest shared agent resources",
+    summary: "refresh the managed codemem install, global command, and shared agent resources",
     example: [
       "codemem upgrade --agent cursor --target-dir <project_dir>",
       "codemem upgrade --agent codex --target-dir <project_dir> --pull true",
@@ -332,6 +332,9 @@ export const commandSpecs: CommandSpec[] = [
       },
     ],
     outputs: [
+      "~/.local/bin/codemem",
+      "~/.codemem/_system/install.json",
+      "~/.codemem/source/",
       "~/.codex/skills/codemem/SKILL.md",
       "~/.codex/skills/codemem/runtime/bin/",
       "~/.codex/skills/codemem/templates/",

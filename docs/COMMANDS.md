@@ -167,7 +167,7 @@ Outputs:
 
 ## `codemem upgrade`
 
-rebuild codemem and reinstall the latest shared agent resources
+refresh the managed codemem install, global command, and shared agent resources
 
 ```bash
 codemem upgrade --agent cursor --target-dir <project_dir>
@@ -186,6 +186,9 @@ Arguments:
 
 Outputs:
 
+- `~/.local/bin/codemem`
+- `~/.codemem/_system/install.json`
+- `~/.codemem/source/`
 - `~/.codex/skills/codemem/SKILL.md`
 - `~/.codex/skills/codemem/runtime/bin/`
 - `~/.codex/skills/codemem/templates/`

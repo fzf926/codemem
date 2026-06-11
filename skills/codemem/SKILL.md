@@ -28,7 +28,7 @@ Use this skill to turn development conventions into reusable project assets:
 - `codemem package` - build a shareable package directory and .tgz
 - `codemem install` - install a shared package into another project
 - `codemem agent` - install or export agent-specific codemem integrations
-- `codemem upgrade` - rebuild codemem and reinstall the latest shared agent resources
+- `codemem upgrade` - refresh the managed codemem install, global command, and shared agent resources
 - `codemem uninstall` - uninstall codemem global resources
 - `codemem projects` - list configured projects
 
@@ -78,6 +78,13 @@ Guidelines:
   exception policy changes, logging or retry conventions, configuration
   standardization, build/deploy structure cleanup, and reusable test pattern
   changes.
+- If the task converts MQ or event consumer branching into topic factories,
+  tag strategies, handler registries, or another reusable dispatch design,
+  capture that convention before the final response instead of leaving it as a
+  suggested follow-up.
+- Once implementation establishes a reusable convention, treat `codemem
+  capture` plus `codemem build` as part of the same task completion path, not
+  an optional extra step.
 
 ### Step 3: Build documents
 

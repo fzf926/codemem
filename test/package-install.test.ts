@@ -76,7 +76,10 @@ function buildSourcePackage(rootDir: string, version: string): { artifactDir: st
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("module extension rules for adding new business modules");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("proactively capture and rebuild standards");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("replacing if/else or switch dispatch with strategies");
+  expect(readFileSync(initialized.agentsFile, "utf8")).toContain("converting MQ or event consumer branching into topic factories");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("Do not require the user to explicitly mention codemem");
+  expect(readFileSync(initialized.agentsFile, "utf8")).toContain("capture the resulting rule(s) and rebuild the standards docs before the final response");
+  expect(readFileSync(initialized.agentsFile, "utf8")).toContain("Do not treat architecture or refactor-derived standards capture as an optional follow-up step");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("standardizing error handling, validation, logging, idempotency, retry, timeout, or fallback behavior");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("reorganizing project structure, module boundaries, build layout, or deployment integration");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("project-standard.source-project.md");
@@ -86,7 +89,10 @@ function buildSourcePackage(rootDir: string, version: string): { artifactDir: st
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("pagination queries");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("proactively capture and rebuild standards");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("replacing if/else or switch dispatch with strategies");
+  expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("converting MQ or event consumer branching into topic factories");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("Do not require the user to explicitly mention codemem");
+  expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("capture the resulting rule or rules and rebuild the standards docs before the final response");
+  expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("Do not treat architecture or refactor-derived standards capture as an optional follow-up step");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("standardizing error handling, validation, logging, idempotency, retry, timeout, or fallback behavior");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("reorganizing project structure, module boundaries, build layout, or deployment integration");
   expect(readFileSync(initialized.gitignoreFile, "utf8")).toContain(".codemem/");

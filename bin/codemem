@@ -13,6 +13,21 @@ while [ -L "$SOURCE" ]; do
 done
 
 ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+PROJECT_ROOT="$(pwd -P)"
+TEMPLATES_DIR="${CODEMEM_TEMPLATES_DIR:-$ROOT/skills/codemem/templates}"
+
+run_project_command() {
+  local command="$1"
+  shift
+
+  if [ -x "$ROOT/core/dist/codemem-$command" ]; then
+    exec env CODEMEM_TEMPLATES_DIR="$TEMPLATES_DIR" \
+      "$ROOT/core/dist/codemem-$command" "$@" --root "$PROJECT_ROOT"
+  fi
+
+  exec env CODEMEM_TEMPLATES_DIR="$TEMPLATES_DIR" \
+    bun run "$ROOT/core/src/cli/$command.ts" "$@" --root "$PROJECT_ROOT"
+}
 
 usage() {
   cat <<'EOF'
@@ -49,7 +64,10 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-  init|capture|build|package|install|upgrade|uninstall|projects)
+  init|capture|build|package|install|projects)
+    run_project_command "$COMMAND" "$@"
+    ;;
+  upgrade|uninstall)
     BIN="$ROOT/bin/codemem-$COMMAND"
     ;;
   agent)

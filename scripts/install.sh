@@ -137,6 +137,19 @@ exec "$INSTALL_DIR/bin/codemem" "\$@"
 EOF
 chmod +x "$SHIM"
 
+mkdir -p "$HOME/.codemem/_system"
+cat > "$HOME/.codemem/_system/install.json" <<EOF
+{
+  "schema": 1,
+  "updatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "managedInstallDir": "$INSTALL_DIR",
+  "activeSourceDir": "$INSTALL_DIR",
+  "binDir": "$BIN_DIR",
+  "shimFile": "$SHIM",
+  "profileFile": "$PROFILE_FILE"
+}
+EOF
+
 if [ -n "$PROFILE_FILE" ]; then
   touch "$PROFILE_FILE"
   if ! grep -F "$BIN_DIR" "$PROFILE_FILE" >/dev/null 2>&1; then

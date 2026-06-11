@@ -50,6 +50,15 @@ function seedInstall(root: string) {
       },
     ],
   }, null, 2) + "\n");
+  writeFileSync(join(homeDir, ".codemem", "_system", "install.json"), JSON.stringify({
+    schema: 1,
+    updatedAt: "2026-06-12T00:00:00Z",
+    managedInstallDir: installDir,
+    activeSourceDir: installDir,
+    binDir,
+    shimFile: join(binDir, "codemem"),
+    profileFile,
+  }, null, 2) + "\n");
   writeFileSync(join(targetDir, "AGENTS.md"), [
     "# AGENTS.md",
     "",
@@ -78,6 +87,7 @@ describe("uninstallCodemem", () => {
       expect(existsSync(join(paths.homeDir, ".codex", "skills", "codemem"))).toBe(false);
       expect(existsSync(join(paths.homeDir, ".claude", "commands", "codemem.md"))).toBe(false);
       expect(existsSync(paths.installDir)).toBe(false);
+      expect(existsSync(join(paths.homeDir, ".codemem", "_system", "install.json"))).toBe(false);
       expect(existsSync(join(paths.targetDir, ".codemem"))).toBe(true);
       expect(existsSync(join(paths.targetDir, ".cursor", "rules", "codemem-standards.mdc"))).toBe(true);
       expect(existsSync(join(paths.targetDir, ".codemem-project.json"))).toBe(true);
@@ -101,6 +111,7 @@ describe("uninstallCodemem", () => {
       expect(existsSync(join(paths.targetDir, ".cursor", "rules", "codemem-standards.mdc"))).toBe(false);
       expect(existsSync(join(paths.targetDir, ".codemem-project.json"))).toBe(false);
       expect(readFileSync(join(paths.homeDir, ".codemem", "_system", "registry", "projects-registry.json"), "utf8")).not.toContain(paths.targetDir);
+      expect(existsSync(join(paths.homeDir, ".codemem", "_system", "install.json"))).toBe(false);
       expect(readFileSync(join(paths.targetDir, "AGENTS.md"), "utf8")).toContain("Project-specific human note.");
       expect(readFileSync(join(paths.targetDir, "AGENTS.md"), "utf8")).not.toContain("codemem:managed:start");
       expect(readFileSync(join(paths.targetDir, ".gitignore"), "utf8")).toBe("node_modules\ndist\n");
@@ -120,6 +131,7 @@ describe("uninstallCodemem", () => {
       expect(existsSync(join(paths.binDir, "codemem"))).toBe(true);
       expect(existsSync(join(paths.homeDir, ".codex", "skills", "codemem"))).toBe(true);
       expect(existsSync(paths.installDir)).toBe(true);
+      expect(existsSync(join(paths.homeDir, ".codemem", "_system", "install.json"))).toBe(true);
       expect(existsSync(join(paths.targetDir, ".codemem"))).toBe(true);
       expect(existsSync(join(paths.targetDir, ".cursor", "rules", "codemem-standards.mdc"))).toBe(true);
       expect(existsSync(join(paths.targetDir, ".codemem-project.json"))).toBe(true);
@@ -127,6 +139,35 @@ describe("uninstallCodemem", () => {
       expect(readFileSync(join(paths.targetDir, "AGENTS.md"), "utf8")).toContain("codemem:managed:start");
       expect(readFileSync(join(paths.targetDir, ".gitignore"), "utf8")).toContain(".codemem/");
       expect(readFileSync(paths.profileFile, "utf8")).toContain("# codemem global command");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("keeps a separately activated source checkout while removing the managed install", () => {
+    const root = makeRoot("codemem-uninstall-active-source-");
+    try {
+      const paths = seedInstall(root);
+      const activeSourceDir = join(root, "workspace", "codemem");
+
+      mkdirSync(join(activeSourceDir, "bin"), { recursive: true });
+      writeFileSync(join(activeSourceDir, "bin", "codemem"), "#!/usr/bin/env bash\n");
+      writeFileSync(join(paths.binDir, "codemem"), `#!/usr/bin/env bash\nexec "${activeSourceDir}/bin/codemem" "$@"\n`);
+      writeFileSync(join(paths.homeDir, ".codemem", "_system", "install.json"), JSON.stringify({
+        schema: 1,
+        updatedAt: "2026-06-12T00:00:00Z",
+        managedInstallDir: paths.installDir,
+        activeSourceDir,
+        binDir: paths.binDir,
+        shimFile: join(paths.binDir, "codemem"),
+        profileFile: paths.profileFile,
+      }, null, 2) + "\n");
+
+      uninstallCodemem(paths);
+
+      expect(existsSync(join(paths.binDir, "codemem"))).toBe(false);
+      expect(existsSync(paths.installDir)).toBe(false);
+      expect(existsSync(activeSourceDir)).toBe(true);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -17,5 +17,9 @@ describe("generated skill docs", () => {
     expect(skillDoc).toContain("do not wait for an explicit codemem request");
     expect(skillDoc).toContain("MQ/event");
     expect(skillDoc).toContain("build/deploy structure cleanup");
+    expect(skillDoc).toContain("topic factories");
+    expect(skillDoc).toContain("tag strategies");
+    expect(skillDoc).toContain("same task completion path");
+    expect(skillDoc).toContain("optional extra step");
   });
 });

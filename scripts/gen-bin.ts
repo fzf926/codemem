@@ -19,6 +19,94 @@ fi
 `;
 }
 
+function renderDispatcher(): string {
+  return `#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE="\${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  SOURCE_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  LINK_TARGET="$(readlink "$SOURCE")"
+  if [[ "$LINK_TARGET" == /* ]]; then
+    SOURCE="$LINK_TARGET"
+  else
+    SOURCE="$SOURCE_DIR/$LINK_TARGET"
+  fi
+done
+
+ROOT="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+PROJECT_ROOT="$(pwd -P)"
+TEMPLATES_DIR="\${CODEMEM_TEMPLATES_DIR:-$ROOT/skills/codemem/templates}"
+
+run_project_command() {
+  local command="$1"
+  shift
+
+  if [ -x "$ROOT/core/dist/codemem-$command" ]; then
+    exec env CODEMEM_TEMPLATES_DIR="$TEMPLATES_DIR" \\
+      "$ROOT/core/dist/codemem-$command" "$@" --root "$PROJECT_ROOT"
+  fi
+
+  exec env CODEMEM_TEMPLATES_DIR="$TEMPLATES_DIR" \\
+    bun run "$ROOT/core/src/cli/$command.ts" "$@" --root "$PROJECT_ROOT"
+}
+
+usage() {
+  cat <<'EOF'
+codemem
+
+Usage:
+  codemem <command> [args]
+
+Commands:
+  init       Initialize a project
+  capture    Capture one development standard
+  build      Generate standards documents
+  package    Build a shareable standards package
+  install    Install a shared standards package
+  agent      Install, detect, or export agent integrations
+  upgrade    Pull, rebuild, and refresh the installed agent integration
+  uninstall  Uninstall codemem global resources
+  projects   List configured projects
+
+Examples:
+  codemem agent install --agent cursor --target-dir .
+  codemem upgrade
+  codemem uninstall --dry-run true
+  codemem build --project my-project --lang zh
+EOF
+}
+
+if [ "$#" -eq 0 ] || [ "\${1:-}" = "--help" ] || [ "\${1:-}" = "-h" ]; then
+  usage
+  exit 0
+fi
+
+COMMAND="$1"
+shift
+
+case "$COMMAND" in
+  init|capture|build|package|install|projects)
+    run_project_command "$COMMAND" "$@"
+    ;;
+  upgrade|uninstall)
+    BIN="$ROOT/bin/codemem-$COMMAND"
+    ;;
+  agent)
+    BIN="$ROOT/bin/codemem-agent"
+    ;;
+  *)
+    echo "codemem: unknown command '$COMMAND'" >&2
+    echo >&2
+    usage >&2
+    exit 1
+    ;;
+esac
+
+exec "$BIN" "$@"
+`;
+}
+
 mkdirSync(binDir, { recursive: true });
 
 for (const spec of commandSpecs) {
@@ -27,4 +115,8 @@ for (const spec of commandSpecs) {
   chmodSync(binFile, 0o755);
 }
 
-console.log(`Generated ${commandSpecs.length} bin wrapper(s)`);
+const dispatcherFile = join(binDir, "codemem");
+writeFileSync(dispatcherFile, renderDispatcher());
+chmodSync(dispatcherFile, 0o755);
+
+console.log(`Generated ${commandSpecs.length} bin wrapper(s) and dispatcher`);

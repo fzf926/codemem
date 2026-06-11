@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { basename, join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { commandSpecs, getCliSource } from "../core/src/cli/command-registry";
 
 describe("generated bin wrappers", () => {
@@ -33,11 +34,46 @@ describe("generated bin wrappers", () => {
     expect(dispatcherHelp.status).toBe(0);
     expect(dispatcherHelp.stdout).toContain("codemem upgrade");
     expect(dispatcherHelp.stdout).toContain("codemem uninstall --dry-run true");
+    expect(readFileSync(dispatcher, "utf8")).toContain("PROJECT_ROOT");
+    expect(readFileSync(dispatcher, "utf8")).toContain("run_project_command");
 
     const installerCheck = spawnSync("bash", ["-n", installer], {
       cwd: root,
       encoding: "utf8",
     });
     expect(installerCheck.status).toBe(0);
+  });
+
+  test("runs project commands against the current working directory", () => {
+    const root = process.cwd();
+    const dispatcher = join(root, "bin", "codemem");
+    const projectDir = mkdtempSync(join(tmpdir(), "codemem-dispatch-project-"));
+    const globalDir = mkdtempSync(join(tmpdir(), "codemem-dispatch-global-"));
+
+    try {
+      const result = spawnSync(dispatcher, [
+        "init",
+        "--project",
+        "dispatch-project",
+        "--owner",
+        "cm",
+      ], {
+        cwd: projectDir,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          CODEMEM_GLOBAL_DIR: globalDir,
+        },
+      });
+
+      expect(result.status).toBe(0);
+      expect(existsSync(join(projectDir, ".codemem", "_system", "meta", "standards", "dispatch-project.env"))).toBe(true);
+      expect(existsSync(join(projectDir, ".codemem-project.json"))).toBe(true);
+      expect(result.stdout).toContain("Project marker:");
+      expect(result.stdout).toContain(basename(projectDir));
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+      rmSync(globalDir, { recursive: true, force: true });
+    }
   });
 });

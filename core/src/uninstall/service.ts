@@ -1,5 +1,6 @@
 import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { getInstallPaths, isManagedCodememShim, loadInstallMetadata } from "../install/service";
 
 export interface UninstallOptions {
   homeDir?: string;
@@ -89,22 +90,13 @@ function removeCodememProfileBlock(profileFile: string, result: UninstallResult,
   result.removed.push(`${profileFile} codemem PATH block`);
 }
 
-function isCodememShim(path: string, installDir: string): boolean {
-  const content = readText(path);
-  if (content === undefined) {
-    return false;
-  }
-
-  return content.includes("codemem") && (content.includes(`${installDir}/bin/codemem`) || content.includes("/bin/codemem"));
-}
-
-function safeRemoveShim(path: string, installDir: string, result: UninstallResult, dryRun: boolean): void {
+function safeRemoveShim(path: string, installDir: string, activeSourceDir: string | undefined, result: UninstallResult, dryRun: boolean): void {
   if (!existsSync(path)) {
     result.skipped.push(path);
     return;
   }
 
-  if (!isCodememShim(path, installDir)) {
+  if (!isManagedCodememShim(path, installDir, activeSourceDir)) {
     result.kept.push(`${path} (not a codemem shim)`);
     return;
   }
@@ -221,18 +213,31 @@ function removeProjectArtifacts(installDir: string, targetDir: string, result: U
 
 export function uninstallCodemem(options: UninstallOptions = {}): UninstallResult {
   const homeDir = options.homeDir || defaultHomeDir();
-  const installDir = resolve(options.installDir || process.env.CODEMEM_HOME || join(homeDir, ".codemem", "source"));
-  const binDir = resolve(options.binDir || process.env.CODEMEM_BIN_DIR || join(homeDir, ".local", "bin"));
+  const paths = getInstallPaths({
+    homeDir,
+    installDir: options.installDir,
+    binDir: options.binDir,
+    profileFile: options.profileFile,
+  });
+  const installDir = paths.managedInstallDir;
+  const binDir = paths.binDir;
   const targetDir = resolve(options.targetDir || process.cwd());
-  const profileFile = options.profileFile || process.env.CODEMEM_PROFILE || defaultProfileFile(homeDir);
+  const profileFile = paths.profileFile || defaultProfileFile(homeDir);
   const dryRun = options.dryRun === true;
+  const metadata = loadInstallMetadata({
+    homeDir,
+    installDir,
+    binDir,
+    profileFile,
+  });
 
   const result: UninstallResult = { removed: [], kept: [], skipped: [] };
 
-  safeRemoveShim(join(binDir, "codemem"), installDir, result, dryRun);
+  safeRemoveShim(join(binDir, "codemem"), installDir, metadata?.activeSourceDir, result, dryRun);
   removePath(join(homeDir, ".codex", "skills", "codemem"), result, dryRun);
   removePath(join(homeDir, ".claude", "commands", "codemem.md"), result, dryRun);
   removePath(installDir, result, dryRun);
+  removePath(paths.metadataFile, result, dryRun);
   removeCodememProfileBlock(profileFile, result, dryRun);
 
   if (options.deleteProjectData) {

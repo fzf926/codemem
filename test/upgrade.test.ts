@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, realpathSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -17,6 +17,7 @@ describe("upgrade command", () => {
     const root = process.cwd();
     const homeDir = mkdtempSync(join(tmpdir(), "codemem-upgrade-home-"));
     const targetDir = mkdtempSync(join(tmpdir(), "codemem-upgrade-target-"));
+    const installDir = join(homeDir, ".codemem", "source");
 
     const result = spawnSync("bun", [
       "run",
@@ -41,9 +42,14 @@ describe("upgrade command", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("Updated codemem global resources");
     expect(result.stdout).toContain("Agent: cursor");
+    expect(result.stdout).toContain(`Source: ${installDir}`);
     expect(existsSync(join(homeDir, ".codex", "skills", "codemem", "SKILL.md"))).toBe(true);
     expect(existsSync(join(homeDir, ".codex", "skills", "codemem", "runtime", "bin", "codemem-init"))).toBe(true);
     expect(existsSync(join(homeDir, ".codex", "skills", "codemem", "templates", "project-standard.zh.template.md"))).toBe(true);
+    expect(existsSync(join(installDir, "package.json"))).toBe(true);
+    expect(readFileSync(join(homeDir, ".local", "bin", "codemem"), "utf8")).toContain(`${installDir}/bin/codemem`);
+    expect(readFileSync(join(homeDir, ".codemem", "_system", "install.json"), "utf8")).toContain(`"managedInstallDir": "${installDir}"`);
+    expect(readFileSync(join(homeDir, ".codemem", "_system", "install.json"), "utf8")).toContain(`"activeSourceDir": "${installDir}"`);
   }, 30000);
 
   test("auto-detects cursor when agent is omitted and target-dir defaults to cwd", async () => {

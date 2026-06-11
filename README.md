@@ -86,6 +86,21 @@ codemem projects
 
 如果你已经在本机装好了 `codemem` 集成，后续更新最简单的方式是直接进入目标项目目录执行 `codemem upgrade`。当未传 `--agent` 和 `--target-dir` 时，它会优先把当前工作目录当成目标项目，并根据已安装集成自动识别当前 agent。
 
+`codemem upgrade` 现在会统一刷新这几层资源：
+
+- 受管安装目录 `~/.codemem/source/`
+- 全局命令 `~/.local/bin/codemem`
+- 安装元数据 `~/.codemem/_system/install.json`
+- agent 共享资源，例如 `~/.codex/skills/codemem/`
+
+如果你正在开发 `codemem` 本体，并且刚在本地源码仓库里改了代码，最推荐直接在这份源码仓库里执行：
+
+```bash
+./bin/codemem upgrade --agent cursor --target-dir <project_dir>
+```
+
+这样会先把当前源码同步到受管安装目录，再重建全局命令和 agent 集成。之后你日常再使用 `codemem upgrade`，就会继续基于同一份受管安装生效，不会再出现“升级的是另一份旧代码”的情况。
+
 如果你后续不想继续使用，可以执行卸载命令。默认只卸载全局命令、全局 skill/runtime/templates 和 agent 集成，会保留当前项目已经生成的规范历史：
 
 ```bash

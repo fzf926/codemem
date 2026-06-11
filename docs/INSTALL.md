@@ -48,6 +48,7 @@ bash scripts/install.sh --agent cursor --target-dir .
 - clone 或更新 `codemem` 源码到 `~/.codemem/source`
 - 执行 `bash scripts/build.sh`
 - 写入全局命令 `~/.local/bin/codemem`
+- 写入安装元数据 `~/.codemem/_system/install.json`
 - 把 `~/.local/bin` 加入 shell profile，例如 `~/.zshrc`
 - 安装或刷新 `~/.codex/skills/codemem/` 下的 skill、runtime 和 templates
 
@@ -188,7 +189,9 @@ codemem upgrade
 
 - 把当前工作目录视为目标项目
 - 根据已安装集成自动识别当前 agent
-- 执行 `bash scripts/build.sh`
+- 刷新受管安装目录 `~/.codemem/source/`
+- 重写全局命令 `~/.local/bin/codemem`
+- 更新安装元数据 `~/.codemem/_system/install.json`
 - 重新安装最新的全局共享资源到 `~/.codex/skills/codemem/`
 
 如果你希望更新前先拉最新代码，可以执行：
@@ -196,6 +199,23 @@ codemem upgrade
 ```bash
 codemem upgrade --pull true
 ```
+
+### 第六步补充：如果你正在开发 codemem 本体
+
+如果你正在本地修改 `codemem` 源码仓库本身，而不是只在业务项目里使用它，推荐在当前源码仓库里执行：
+
+```bash
+./bin/codemem upgrade --agent cursor --target-dir /path/to/target-project
+```
+
+这条命令会先把你当前源码仓库同步到受管安装目录 `~/.codemem/source/`，然后再统一完成：
+
+- 重新构建 CLI
+- 重写全局命令 `~/.local/bin/codemem`
+- 更新 `~/.codemem/_system/install.json`
+- 刷新 agent 集成与共享 runtime/templates
+
+这样后续你再直接执行 `codemem upgrade`，走的仍然是这一份受管安装目录，不会再出现“当前开发仓库是一份、全局安装又是另一份”的漂移。
 
 ### 第七步：后续如何卸载
 
@@ -208,6 +228,7 @@ codemem uninstall
 默认卸载会删除：
 
 - 全局命令 shim，例如 `~/.local/bin/codemem`
+- 安装元数据，例如 `~/.codemem/_system/install.json`
 - 全局 skill、runtime 和 templates，例如 `~/.codex/skills/codemem/`
 - Claude Code 命令集成，例如 `~/.claude/commands/codemem.md`
 - 本机源码安装目录，例如 `~/.codemem/source/`
