@@ -1,5 +1,5 @@
-import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 import { ensureDir, loadJson, saveJson } from "../shared/fs";
 import { nowIso } from "../shared/time";
 
@@ -89,13 +89,20 @@ export function syncManagedInstall(sourceDir: string, installDir: string): void 
     return;
   }
 
-  rmSync(to, { recursive: true, force: true });
-  ensureDir(dirname(to));
+  ensureDir(to);
+
+  for (const entry of readdirSync(to)) {
+    if (entry === ".git") {
+      continue;
+    }
+
+    rmSync(join(to, entry), { recursive: true, force: true });
+  }
 
   cpSync(from, to, {
     recursive: true,
     filter: (entry) => {
-      const base = entry.split("/").pop() || entry;
+      const base = basename(entry);
       return base !== ".git" && base !== ".codemem" && base !== "node_modules" && !base.endsWith(".bun-build");
     },
   });
