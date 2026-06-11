@@ -25,6 +25,7 @@ Use this skill to turn development conventions into reusable project assets:
 - `codemem install` - install a shared package into another project
 - `codemem agent` - install or export agent-specific codemem integrations
 - `codemem upgrade` - rebuild codemem and reinstall the latest shared agent resources
+- `codemem uninstall` - uninstall codemem global resources
 - `codemem projects` - list configured projects
 
 ## Workflow
@@ -192,6 +193,17 @@ codemem projects
 | `--skill-dir` | Optional | - | - | override the integration install directory for the selected agent |
 | `--lang` | Optional | `zh` | `zh`, `en` | language used in regenerated prompts and guidance |
 | `--pull` | Optional | `false` | `true`, `false` | run git pull --ff-only before rebuilding and reinstalling |
+
+### `codemem uninstall`
+
+| Argument | Required | Default | Allowed values | Description |
+| --- | --- | --- | --- | --- |
+| `--target-dir` | Optional | `current working directory` | - | project directory whose generated codemem data may be deleted when --delete-project-data true is set |
+| `--delete-project-data` | Optional | `false` | `true`, `false` | also delete generated project standards and codemem project-side references under <target-dir> |
+| `--install-dir` | Optional | `~/.codemem/source` | - | codemem source install directory to remove |
+| `--bin-dir` | Optional | `~/.local/bin` | - | directory containing the global codemem command shim |
+| `--profile` | Optional | `~/.zshrc or ~/.bashrc` | - | shell profile file whose codemem PATH block should be removed |
+| `--dry-run` | Optional | `false` | `true`, `false` | print what would be removed without deleting anything |
 
 ### `codemem projects`
 

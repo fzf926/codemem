@@ -19,6 +19,7 @@
     "dev:install": "bun run core/src/cli/install.ts",
     "dev:agent": "bun run core/src/cli/agent.ts",
     "dev:upgrade": "bun run core/src/cli/upgrade.ts",
+    "dev:uninstall": "bun run core/src/cli/uninstall.ts",
     "dev:projects": "bun run core/src/cli/projects.ts"
   },
   "engines": {

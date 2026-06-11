@@ -29,11 +29,13 @@ Commands:
   install    Install a shared standards package
   agent      Install, detect, or export agent integrations
   upgrade    Pull, rebuild, and refresh the installed agent integration
+  uninstall  Uninstall codemem global resources
   projects   List configured projects
 
 Examples:
   codemem agent install --agent cursor --target-dir .
   codemem upgrade
+  codemem uninstall --dry-run true
   codemem build --project my-project --lang zh
 EOF
 }
@@ -47,7 +49,7 @@ COMMAND="$1"
 shift
 
 case "$COMMAND" in
-  init|capture|build|package|install|upgrade|projects)
+  init|capture|build|package|install|upgrade|uninstall|projects)
     BIN="$ROOT/bin/codemem-$COMMAND"
     ;;
   agent)

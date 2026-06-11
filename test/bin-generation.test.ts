@@ -32,6 +32,7 @@ describe("generated bin wrappers", () => {
     });
     expect(dispatcherHelp.status).toBe(0);
     expect(dispatcherHelp.stdout).toContain("codemem upgrade");
+    expect(dispatcherHelp.stdout).toContain("codemem uninstall --dry-run true");
 
     const installerCheck = spawnSync("bash", ["-n", installer], {
       cwd: root,

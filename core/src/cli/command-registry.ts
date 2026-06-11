@@ -7,7 +7,7 @@ export interface CommandArgSpec {
 }
 
 export interface CommandSpec {
-  id: "init" | "capture" | "build" | "package" | "install" | "projects" | "agent" | "upgrade";
+  id: "init" | "capture" | "build" | "package" | "install" | "projects" | "agent" | "upgrade" | "uninstall";
   binName: string;
   devScript: string;
   summary: string;
@@ -334,6 +334,57 @@ export const commandSpecs: CommandSpec[] = [
       "~/.codex/skills/codemem/SKILL.md",
       "~/.codex/skills/codemem/runtime/bin/",
       "~/.codex/skills/codemem/templates/",
+    ],
+  },
+  {
+    id: "uninstall",
+    binName: "codemem-uninstall",
+    devScript: "dev:uninstall",
+    summary: "uninstall codemem global resources",
+    example: [
+      "codemem uninstall",
+      "codemem uninstall --delete-project-data true --target-dir <project_dir>",
+    ],
+    args: [
+      {
+        name: "--target-dir",
+        description: "project directory whose generated codemem data may be deleted when --delete-project-data true is set",
+        defaultValue: "current working directory",
+      },
+      {
+        name: "--delete-project-data",
+        description: "also delete generated project standards and codemem project-side references under <target-dir>",
+        defaultValue: "false",
+        values: ["true", "false"],
+      },
+      {
+        name: "--install-dir",
+        description: "codemem source install directory to remove",
+        defaultValue: "~/.codemem/source",
+      },
+      {
+        name: "--bin-dir",
+        description: "directory containing the global codemem command shim",
+        defaultValue: "~/.local/bin",
+      },
+      {
+        name: "--profile",
+        description: "shell profile file whose codemem PATH block should be removed",
+        defaultValue: "~/.zshrc or ~/.bashrc",
+      },
+      {
+        name: "--dry-run",
+        description: "print what would be removed without deleting anything",
+        defaultValue: "false",
+        values: ["true", "false"],
+      },
+    ],
+    outputs: [
+      "removes ~/.local/bin/codemem when it is the codemem shim",
+      "removes ~/.codex/skills/codemem/",
+      "removes ~/.claude/commands/codemem.md when present",
+      "removes ~/.codemem/source/",
+      "optionally removes <target-dir>/.codemem/, .cursor/rules/codemem-standards.mdc, codemem AGENTS.md block, and .gitignore entry",
     ],
   },
   {

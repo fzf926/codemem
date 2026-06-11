@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { commandSpecs, getCliSource } from "../core/src/cli/command-registry";
 
@@ -22,7 +22,9 @@ fi
 mkdirSync(binDir, { recursive: true });
 
 for (const spec of commandSpecs) {
-  writeFileSync(join(binDir, spec.binName), renderWrapper(spec.binName, getCliSource(spec.id)));
+  const binFile = join(binDir, spec.binName);
+  writeFileSync(binFile, renderWrapper(spec.binName, getCliSource(spec.id)));
+  chmodSync(binFile, 0o755);
 }
 
 console.log(`Generated ${commandSpecs.length} bin wrapper(s)`);

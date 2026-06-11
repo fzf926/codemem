@@ -189,6 +189,34 @@ Outputs:
 - `~/.codex/skills/codemem/runtime/bin/`
 - `~/.codex/skills/codemem/templates/`
 
+## `codemem uninstall`
+
+uninstall codemem global resources
+
+```bash
+codemem uninstall
+codemem uninstall --delete-project-data true --target-dir <project_dir>
+```
+
+Arguments:
+
+| Argument | Required | Default | Allowed values | Description |
+| --- | --- | --- | --- | --- |
+| `--target-dir` | Optional | `current working directory` | - | project directory whose generated codemem data may be deleted when --delete-project-data true is set |
+| `--delete-project-data` | Optional | `false` | `true`, `false` | also delete generated project standards and codemem project-side references under <target-dir> |
+| `--install-dir` | Optional | `~/.codemem/source` | - | codemem source install directory to remove |
+| `--bin-dir` | Optional | `~/.local/bin` | - | directory containing the global codemem command shim |
+| `--profile` | Optional | `~/.zshrc or ~/.bashrc` | - | shell profile file whose codemem PATH block should be removed |
+| `--dry-run` | Optional | `false` | `true`, `false` | print what would be removed without deleting anything |
+
+Outputs:
+
+- `removes ~/.local/bin/codemem when it is the codemem shim`
+- `removes ~/.codex/skills/codemem/`
+- `removes ~/.claude/commands/codemem.md when present`
+- `removes ~/.codemem/source/`
+- `optionally removes <target-dir>/.codemem/, .cursor/rules/codemem-standards.mdc, codemem AGENTS.md block, and .gitignore entry`
+
 ## `codemem projects`
 
 list configured projects

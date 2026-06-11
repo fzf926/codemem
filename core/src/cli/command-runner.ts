@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import type { AgentId } from "../agent/service";
 import { buildPackage } from "../packaging/service";
 import { installPackage } from "../installer/service";
+import { uninstallCodemem } from "../uninstall/service";
 import { formatProjectsTable, listProjects } from "../registry/service";
 import { run } from "../shared/process";
 import { buildStandards, captureRule, initProject } from "../standards/service";
@@ -179,6 +180,27 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
       console.log("Git: pulled latest changes with --ff-only");
     }
     process.stdout.write(result.stdout.toString());
+  },
+  uninstall({ args }) {
+    const result = uninstallCodemem({
+      targetDir: resolveDirectoryArg(args.get("target-dir")),
+      installDir: args.get("install-dir") && args.get("install-dir") !== "~/.codemem/source" ? resolve(args.get("install-dir")!) : undefined,
+      binDir: args.get("bin-dir") && args.get("bin-dir") !== "~/.local/bin" ? resolve(args.get("bin-dir")!) : undefined,
+      profileFile: args.get("profile") && args.get("profile") !== "~/.zshrc or ~/.bashrc" ? resolve(args.get("profile")!) : undefined,
+      deleteProjectData: args.get("delete-project-data") === "true",
+      dryRun: args.get("dry-run") === "true",
+    });
+
+    console.log(args.get("dry-run") === "true" ? "codemem uninstall dry run" : "codemem uninstalled");
+    for (const path of result.removed) {
+      console.log("Removed: " + path);
+    }
+    for (const path of result.kept) {
+      console.log("Kept: " + path);
+    }
+    for (const path of result.skipped) {
+      console.log("Skipped: " + path);
+    }
   },
   projects({ args, rootDir }) {
     if (args.get("json") === "true") {

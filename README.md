@@ -86,6 +86,18 @@ codemem projects
 
 如果你已经在本机装好了 `codemem` 集成，后续更新最简单的方式是直接进入目标项目目录执行 `codemem upgrade`。当未传 `--agent` 和 `--target-dir` 时，它会优先把当前工作目录当成目标项目，并根据已安装集成自动识别当前 agent。
 
+如果你后续不想继续使用，可以执行卸载命令。默认只卸载全局命令、全局 skill/runtime/templates 和 agent 集成，会保留当前项目已经生成的规范历史：
+
+```bash
+codemem uninstall
+```
+
+如果你确认也要删除目标项目里已经生成的规范历史和 codemem 项目侧引用，再显式加上参数：
+
+```bash
+codemem uninstall --delete-project-data true --target-dir <project_dir>
+```
+
 ## 更多命令说明
 
 完整命令参考请见 [docs/COMMANDS.md](docs/COMMANDS.md)。

@@ -197,6 +197,37 @@ codemem upgrade
 codemem upgrade --pull true
 ```
 
+### 第七步：后续如何卸载
+
+如果你后续不想继续使用 `codemem`，可以执行：
+
+```bash
+codemem uninstall
+```
+
+默认卸载会删除：
+
+- 全局命令 shim，例如 `~/.local/bin/codemem`
+- 全局 skill、runtime 和 templates，例如 `~/.codex/skills/codemem/`
+- Claude Code 命令集成，例如 `~/.claude/commands/codemem.md`
+- 本机源码安装目录，例如 `~/.codemem/source/`
+- shell profile 中由安装脚本写入的 `codemem` PATH 块
+
+默认不会删除目标项目里已经生成的 `.codemem/` 规范历史，也不会改动 `AGENTS.md`、`.cursor/rules/codemem-standards.mdc` 或 `.gitignore`，避免误删项目沉淀。
+
+如果你确认也要删除某个目标项目的历史规范和 codemem 项目侧引用，再显式执行：
+
+```bash
+codemem uninstall --delete-project-data true --target-dir /path/to/target-project
+```
+
+如果你想先预览会删除哪些内容，可以加 dry run：
+
+```bash
+codemem uninstall --dry-run true
+```
+
+
 ## 5. 提供方流程：生成并分享安装包
 
 ### 第一步：初始化项目
