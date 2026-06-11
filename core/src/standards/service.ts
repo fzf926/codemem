@@ -279,6 +279,21 @@ function renderRequiredScanDimensions(): string[] {
   return REQUIRED_SCAN_DIMENSIONS.map((item) => `  - ${item}`);
 }
 
+function renderAutoCaptureSignals(): string[] {
+  return [
+    "  - architecture or design pattern refactors",
+    "  - replacing if/else or switch dispatch with strategies, factories, handlers, registries, or template methods",
+    "  - extracting reusable module boundaries, layered responsibilities, or domain service splits",
+    "  - unifying inconsistent implementations into one shared mechanism, base class, adapter, or orchestration flow",
+    "  - introducing stable conventions for MQ consumers, events, jobs, schedulers, controllers, or service orchestration",
+    "  - standardizing error handling, validation, logging, idempotency, retry, timeout, or fallback behavior",
+    "  - redesigning repository, cache, RPC, HTTP client, or persistence access patterns",
+    "  - introducing shared naming, packaging, configuration, or dependency injection conventions",
+    "  - reorganizing project structure, module boundaries, build layout, or deployment integration",
+    "  - defining reusable testing, mocking, fixture, contract, or migration patterns",
+  ];
+}
+
 function renderAgentsSection(project: string): string {
   return [
     AGENTS_MANAGED_START,
@@ -299,6 +314,9 @@ function renderAgentsSection(project: string): string {
     "- Default to finishing initialization, standards capture, and document regeneration in one pass.",
     "- During initialization scans, cover this required checklist before deciding the scan is complete:",
     ...renderRequiredScanDimensions(),
+    "- Outside initialization, proactively capture and rebuild standards when a task establishes a reusable engineering convention, especially for:",
+    ...renderAutoCaptureSignals(),
+    "- Do not require the user to explicitly mention codemem before recording these architecture or refactor-derived standards.",
     "- Aim to capture at least one evidenced rule per applicable checklist item and 20-40 well-supported standards on a normal project. If fewer than 20 are captured, explain what evidence was missing.",
     "- Do not end with optional follow-up offers for obvious low-risk work. If the next step is clearly part of the user's request, complete it before the final response.",
     "- Only pause for confirmation when project identity is uncertain, a change would overwrite meaningful user content, or a standards conflict cannot be resolved safely.",
@@ -359,6 +377,9 @@ function syncCursorRule(rootDir: string, project: string): string {
     "Default to finishing initialization, standards capture, and document regeneration in one pass.",
     "During initialization scans, cover this required checklist before deciding the scan is complete:",
     ...renderRequiredScanDimensions(),
+    "Outside initialization, proactively capture and rebuild standards when a task establishes a reusable engineering convention, especially for:",
+    ...renderAutoCaptureSignals(),
+    "Do not require the user to explicitly mention codemem before recording these architecture or refactor-derived standards.",
     "Aim to capture at least one evidenced rule per applicable checklist item and 20-40 well-supported standards on a normal project. If fewer than 20 are captured, explain what evidence was missing.",
     "Do not end with optional follow-up offers for obvious low-risk work. If the next step is clearly part of the user's request, complete it before the final response.",
     "Only pause for confirmation when project identity is uncertain, a change would overwrite meaningful user content, or a standards conflict cannot be resolved safely.",

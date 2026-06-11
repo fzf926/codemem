@@ -4,6 +4,10 @@ description: |
   Record development standards during implementation, generate global and
   project-specific standards, track which projects installed the shared
   standard, and distribute the standard as a shareable install package.
+  Use this not only for explicit codemem requests, but also when a task
+  introduces reusable architecture or coding conventions through refactors,
+  strategy/factory extraction, dispatch redesign, module boundary cleanup,
+  or replacing ad hoc branching with structured patterns.
 ---
 
 ## Purpose
@@ -43,6 +47,19 @@ Guidelines:
 - Keep each captured rule imperative and verifiable.
 - Use one capture per rule.
 - Promote only stable cross-project rules into `scope=global`.
+- When a task introduces a reusable engineering rule through refactoring or
+  architecture changes, do not wait for an explicit codemem request. Capture
+  the rule and rebuild the standards docs in the same pass.
+- Treat requests such as "refactor", "restructure", "unify", "extract
+  strategy/factory", "replace if/else dispatch", "introduce pattern", and
+  similar architecture cleanup work as strong signals that standards likely
+  changed and should be reviewed for capture.
+- Treat broader engineering or project transformations as likely standards
+  updates too, including module boundary redesign, layering cleanup, MQ/event
+  handling refactors, repository/cache/RPC pattern unification, validation or
+  exception policy changes, logging or retry conventions, configuration
+  standardization, build/deploy structure cleanup, and reusable test pattern
+  changes.
 
 ### Step 3: Build documents
 

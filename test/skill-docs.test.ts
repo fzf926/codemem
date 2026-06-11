@@ -14,5 +14,8 @@ describe("generated skill docs", () => {
     expect(skillDoc).toContain("`--scope`");
     expect(skillDoc).toContain("Install policy");
     expect(skillDoc).toContain("reinstalled");
+    expect(skillDoc).toContain("do not wait for an explicit codemem request");
+    expect(skillDoc).toContain("MQ/event");
+    expect(skillDoc).toContain("build/deploy structure cleanup");
   });
 });
