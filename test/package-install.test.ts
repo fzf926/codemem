@@ -20,6 +20,25 @@ function prepareRoot(root: string): void {
   );
 }
 
+function withGlobalDir<T>(root: string, run: () => T): T {
+  const previousGlobalDir = process.env.CODEMEM_GLOBAL_DIR;
+  process.env.CODEMEM_GLOBAL_DIR = join(root, ".global-codemem");
+
+  try {
+    return run();
+  } finally {
+    if (previousGlobalDir === undefined) {
+      delete process.env.CODEMEM_GLOBAL_DIR;
+    } else {
+      process.env.CODEMEM_GLOBAL_DIR = previousGlobalDir;
+    }
+  }
+}
+
+function setGlobalDir(root: string): void {
+  process.env.CODEMEM_GLOBAL_DIR = join(root, ".global-codemem");
+}
+
 function captureDocsRule(rootDir: string, project: string): void {
   captureRule({
     rootDir,
@@ -36,6 +55,7 @@ function captureDocsRule(rootDir: string, project: string): void {
 }
 
 function buildSourcePackage(rootDir: string, version: string): { artifactDir: string; artifactFile: string } {
+  setGlobalDir(rootDir);
   const initialized = initProject({
     rootDir,
     project: "source-project",
@@ -46,6 +66,8 @@ function buildSourcePackage(rootDir: string, version: string): { artifactDir: st
   expect(existsSync(initialized.agentsFile)).toBe(true);
   expect(existsSync(initialized.cursorRuleFile)).toBe(true);
   expect(existsSync(initialized.gitignoreFile)).toBe(true);
+  expect(existsSync(initialized.projectMarkerFile)).toBe(true);
+  expect(existsSync(initialized.globalRegistryFile)).toBe(true);
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain(".codemem/docs/global/global-standard.md");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("Default to finishing initialization, standards capture, and document regeneration in one pass.");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("Do not end with optional follow-up offers for obvious low-risk work.");
@@ -86,8 +108,10 @@ describe("package and install flow", () => {
     const targetRoot = makeRoot("codemem-target-");
 
     try {
-      prepareRoot(sourceRoot);
-      const packaged = buildSourcePackage(sourceRoot, "9.9.9");
+      withGlobalDir(sourceRoot, () => {
+        prepareRoot(sourceRoot);
+      });
+      const packaged = withGlobalDir(sourceRoot, () => buildSourcePackage(sourceRoot, "9.9.9"));
 
       expect(existsSync(packaged.artifactFile)).toBe(true);
       expect(existsSync(`${packaged.artifactFile}.sha256`)).toBe(true);
@@ -114,19 +138,21 @@ describe("package and install flow", () => {
       expect(manifest.integrity.files["global-standard.md"]).toHaveLength(64);
       expect(manifest.integrity.files["project-standard.source-project.md"]).toHaveLength(64);
 
-      const result = installPackage({
+      const result = withGlobalDir(sourceRoot, () => installPackage({
         rootDir: sourceRoot,
         packagePath: packaged.artifactFile,
         target: targetRoot,
         project: "target-project",
         owner: "cm",
-      });
+      }));
       expect(result.action).toBe("installed");
       expect(result.compatibility.hostCodememVersion).toBe("0.1.0");
       expect(result.compatibility.requiredCodememVersion).toBe(">=0.1.0");
       expect(result.compatibility.requiredNodeVersion).toBe(">=18");
 
       expect(existsSync(join(targetRoot, ".codemem", "installed-standard.json"))).toBe(true);
+      expect(existsSync(join(targetRoot, ".codemem-project.json"))).toBe(true);
+      expect(existsSync(join(sourceRoot, ".global-codemem", "_system", "registry", "projects-registry.json"))).toBe(true);
 
       const installed = JSON.parse(
         readFileSync(join(targetRoot, ".codemem", "installed-standard.json"), "utf8"),
@@ -135,7 +161,7 @@ describe("package and install flow", () => {
       expect(installed.packageVersion).toBe("9.9.9");
       expect(installed.sourceProject).toBe("source-project");
 
-      const registry = listProjects(sourceRoot);
+      const registry = withGlobalDir(sourceRoot, () => listProjects(sourceRoot));
       expect(registry.projects.some((item) => item.project === "target-project")).toBe(true);
     } finally {
       rmSync(sourceRoot, { recursive: true, force: true });
@@ -147,11 +173,17 @@ describe("package and install flow", () => {
     const sourceRoot = makeRoot("codemem-installer-");
 
     try {
-      prepareRoot(sourceRoot);
-      const packaged = buildSourcePackage(sourceRoot, "9.9.9");
+      withGlobalDir(sourceRoot, () => {
+        prepareRoot(sourceRoot);
+      });
+      const packaged = withGlobalDir(sourceRoot, () => buildSourcePackage(sourceRoot, "9.9.9"));
 
       const help = spawnSync("node", [join(packaged.artifactDir, "install.mjs"), "--help"], {
         encoding: "utf8",
+        env: {
+          ...process.env,
+          CODEMEM_GLOBAL_DIR: join(sourceRoot, ".global-codemem"),
+        },
       });
       expect(help.status).toBe(0);
       expect(help.stdout).toContain("install.mjs");
@@ -161,6 +193,10 @@ describe("package and install flow", () => {
 
       const invalid = spawnSync("node", [join(packaged.artifactDir, "install.mjs"), "--wat"], {
         encoding: "utf8",
+        env: {
+          ...process.env,
+          CODEMEM_GLOBAL_DIR: join(sourceRoot, ".global-codemem"),
+        },
       });
       expect(invalid.status).not.toBe(0);
       expect(invalid.stderr).toContain("unknown argument --wat");
@@ -175,6 +211,7 @@ describe("package and install flow", () => {
     const targetRoot = makeRoot("codemem-upgrade-target-");
 
     try {
+      setGlobalDir(sourceRoot);
       prepareRoot(sourceRoot);
 
       const firstPackage = buildSourcePackage(sourceRoot, "1.0.0");
@@ -214,6 +251,7 @@ describe("package and install flow", () => {
     const targetRoot = makeRoot("codemem-downgrade-target-");
 
     try {
+      setGlobalDir(sourceRoot);
       prepareRoot(sourceRoot);
 
       const newerPackage = buildSourcePackage(sourceRoot, "2.0.0");
@@ -247,6 +285,7 @@ describe("package and install flow", () => {
     const targetRoot = makeRoot("codemem-allow-downgrade-target-");
 
     try {
+      setGlobalDir(sourceRoot);
       prepareRoot(sourceRoot);
 
       const newerPackage = buildSourcePackage(sourceRoot, "3.0.0");
@@ -286,6 +325,7 @@ describe("package and install flow", () => {
     const targetRoot = makeRoot("codemem-reinstall-target-");
 
     try {
+      setGlobalDir(sourceRoot);
       prepareRoot(sourceRoot);
       const packaged = buildSourcePackage(sourceRoot, "4.0.0");
 
@@ -328,6 +368,7 @@ describe("package and install flow", () => {
     const targetRoot = makeRoot("codemem-schema-target-");
 
     try {
+      setGlobalDir(sourceRoot);
       prepareRoot(sourceRoot);
       const packaged = buildSourcePackage(sourceRoot, "5.0.0");
       const manifestFile = join(packaged.artifactDir, "standard-package.json");
@@ -355,6 +396,7 @@ describe("package and install flow", () => {
     const targetRoot = makeRoot("codemem-hostreq-target-");
 
     try {
+      setGlobalDir(sourceRoot);
       prepareRoot(sourceRoot);
       const packaged = buildSourcePackage(sourceRoot, "6.0.0");
       const manifestFile = join(packaged.artifactDir, "standard-package.json");
@@ -384,6 +426,7 @@ describe("package and install flow", () => {
     const targetRoot = makeRoot("codemem-integrity-target-");
 
     try {
+      setGlobalDir(sourceRoot);
       prepareRoot(sourceRoot);
       const packaged = buildSourcePackage(sourceRoot, "7.0.0");
       writeFileSync(join(packaged.artifactDir, "payload", "global-standard.md"), "# tampered\n");
@@ -408,6 +451,7 @@ describe("package and install flow", () => {
     const targetRoot = makeRoot("codemem-cliinstall-target-");
 
     try {
+      setGlobalDir(sourceRoot);
       prepareRoot(sourceRoot);
       const packaged = buildSourcePackage(sourceRoot, "8.0.0");
 
@@ -448,6 +492,7 @@ describe("package and install flow", () => {
     const targetRoot = makeRoot("codemem-cliinstall-json-target-");
 
     try {
+      setGlobalDir(sourceRoot);
       prepareRoot(sourceRoot);
       const packaged = buildSourcePackage(sourceRoot, "8.1.0");
 
@@ -501,7 +546,8 @@ describe("package and install flow", () => {
       expect(existsSync(join(sourceRoot, ".codemem", "docs", "reports", "standards-conflicts.md"))).toBe(true);
       expect(existsSync(join(sourceRoot, ".codemem", "_system", "logs", "standards", "source-project.jsonl"))).toBe(true);
       expect(existsSync(join(sourceRoot, ".codemem", "_system", "meta", "standards", "source-project.env"))).toBe(true);
-      expect(existsSync(join(sourceRoot, ".codemem", "_system", "registry", "projects-registry.json"))).toBe(true);
+      expect(existsSync(join(sourceRoot, ".global-codemem", "_system", "registry", "projects-registry.json"))).toBe(true);
+      expect(existsSync(join(sourceRoot, ".codemem-project.json"))).toBe(true);
       expect(existsSync(join(sourceRoot, ".codemem", "_system", "packages", "standards"))).toBe(true);
     } finally {
       rmSync(sourceRoot, { recursive: true, force: true });
@@ -512,6 +558,7 @@ describe("package and install flow", () => {
 describe("project init guidance", () => {
   test("adds .codemem to .gitignore only once", () => {
     const root = makeRoot("codemem-gitignore-");
+    setGlobalDir(root);
     prepareRoot(root);
 
     initProject({
@@ -533,6 +580,7 @@ describe("project init guidance", () => {
 
   test("preserves existing .gitignore entries", () => {
     const root = makeRoot("codemem-existing-gitignore-");
+    setGlobalDir(root);
     prepareRoot(root);
     writeFileSync(join(root, ".gitignore"), "node_modules\n");
 

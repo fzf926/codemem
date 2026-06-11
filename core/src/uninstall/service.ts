@@ -183,11 +183,40 @@ function removeGitignoreEntry(targetDir: string, result: UninstallResult, dryRun
   result.removed.push(`${gitignoreFile} .codemem entry`);
 }
 
-function removeProjectArtifacts(targetDir: string, result: UninstallResult, dryRun: boolean): void {
+function removeProjectMarker(targetDir: string, result: UninstallResult, dryRun: boolean): void {
+  removePath(join(targetDir, ".codemem-project.json"), result, dryRun);
+}
+
+function removeProjectFromGlobalRegistry(installDir: string, targetDir: string, result: UninstallResult, dryRun: boolean): void {
+  const registryFile = join(resolve(installDir, ".."), "_system", "registry", "projects-registry.json");
+  const content = readText(registryFile);
+  if (content === undefined) {
+    result.skipped.push(registryFile);
+    return;
+  }
+
+  const registry = JSON.parse(content) as { projects?: Array<{ projectPath?: string }>; updatedAt?: string };
+  const projects = Array.isArray(registry.projects) ? registry.projects : [];
+  const next = projects.filter((item) => item.projectPath !== targetDir);
+
+  if (next.length === projects.length) {
+    result.skipped.push(registryFile);
+    return;
+  }
+
+  registry.projects = next;
+  registry.updatedAt = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+  writeText(registryFile, `${JSON.stringify(registry, null, 2)}\n`, dryRun);
+  result.removed.push(`${registryFile} entry for ${targetDir}`);
+}
+
+function removeProjectArtifacts(installDir: string, targetDir: string, result: UninstallResult, dryRun: boolean): void {
   safeRemoveProjectData(targetDir, result, dryRun);
   removeCursorRule(targetDir, result, dryRun);
   removeAgentsManagedBlock(targetDir, result, dryRun);
   removeGitignoreEntry(targetDir, result, dryRun);
+  removeProjectMarker(targetDir, result, dryRun);
+  removeProjectFromGlobalRegistry(installDir, targetDir, result, dryRun);
 }
 
 export function uninstallCodemem(options: UninstallOptions = {}): UninstallResult {
@@ -207,12 +236,13 @@ export function uninstallCodemem(options: UninstallOptions = {}): UninstallResul
   removeCodememProfileBlock(profileFile, result, dryRun);
 
   if (options.deleteProjectData) {
-    removeProjectArtifacts(targetDir, result, dryRun);
+    removeProjectArtifacts(installDir, targetDir, result, dryRun);
   } else {
     result.kept.push(join(targetDir, ".codemem"));
     result.kept.push(join(targetDir, ".cursor", "rules", "codemem-standards.mdc"));
     result.kept.push(join(targetDir, "AGENTS.md"));
     result.kept.push(join(targetDir, ".gitignore"));
+    result.kept.push(join(targetDir, ".codemem-project.json"));
   }
 
   return result;

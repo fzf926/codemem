@@ -3,9 +3,11 @@ import { basename, dirname, join } from "node:path";
 import { ensureDir } from "../shared/fs";
 import {
   getGlobalDocsDir,
+  getGlobalProjectsRegistryFile,
   getGlobalStandardFile,
   getLogsDir,
   getMetaDir,
+  getProjectMarkerFile,
   getProjectDocsDir,
   getProjectStandardFile,
   getReportsDir,
@@ -49,6 +51,8 @@ export interface InitResult {
   agentsFile: string;
   cursorRuleFile: string;
   gitignoreFile: string;
+  projectMarkerFile: string;
+  globalRegistryFile: string;
 }
 
 interface Rule {
@@ -448,8 +452,10 @@ export function initProject(options: InitOptions): InitResult {
   const agentsFile = syncAgentsGuide(options.rootDir, options.project);
   const cursorRuleFile = syncCursorRule(options.rootDir, options.project);
   const gitignoreFile = syncGitignore(options.rootDir);
+  const projectMarkerFile = getProjectMarkerFile(options.rootDir);
+  const globalRegistryFile = getGlobalProjectsRegistryFile();
 
-  return { metaFile, logFile, agentsFile, cursorRuleFile, gitignoreFile };
+  return { metaFile, logFile, agentsFile, cursorRuleFile, gitignoreFile, projectMarkerFile, globalRegistryFile };
 }
 
 export function captureRule(options: CaptureOptions): string {

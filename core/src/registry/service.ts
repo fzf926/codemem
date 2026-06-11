@@ -1,6 +1,13 @@
-import { basename } from "node:path";
+import { existsSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { ensureDir, loadJson, saveJson } from "../shared/fs";
-import { getPackagesRegistryFile, getProjectsRegistryFile, getRegistryDir } from "../shared/paths";
+import {
+  getGlobalProjectsRegistryFile,
+  getPackagesRegistryFile,
+  getProjectMarkerFile,
+  getProjectsRegistryFile,
+  getRegistryDir,
+} from "../shared/paths";
 import { migrateLegacyStateLayout } from "../shared/state-layout";
 import { nowIso } from "../shared/time";
 
@@ -24,6 +31,22 @@ interface ProjectsRegistry {
   projects: ProjectRecord[];
 }
 
+export interface ProjectMarker {
+  schema: number;
+  tool: "codemem";
+  enabled: true;
+  project: string;
+  owner: string;
+  mode: string;
+  sourceProject: string;
+  packageId: string;
+  packageVersion: string;
+  configuredAt: string;
+  lastUpdatedAt: string;
+  status: string;
+  standardsPolicyVersion: number;
+}
+
 interface PackageRecord {
   packageId: string;
   version: string;
@@ -42,11 +65,28 @@ interface PackagesRegistry {
 function loadProjectsRegistry(rootDir: string): ProjectsRegistry {
   migrateLegacyStateLayout(rootDir);
   ensureDir(getRegistryDir(rootDir));
-  return loadJson<ProjectsRegistry>(getProjectsRegistryFile(rootDir), {
+  ensureDir(dirname(getGlobalProjectsRegistryFile()));
+  migrateLocalProjectsRegistryToGlobal(rootDir);
+  return loadJson<ProjectsRegistry>(getGlobalProjectsRegistryFile(), {
     schema: 1,
     updatedAt: nowIso(),
     projects: [],
   });
+}
+
+function migrateLocalProjectsRegistryToGlobal(rootDir: string): void {
+  const localRegistryFile = getProjectsRegistryFile(rootDir);
+  const globalRegistryFile = getGlobalProjectsRegistryFile();
+
+  if (!existsSync(localRegistryFile) || existsSync(globalRegistryFile)) {
+    return;
+  }
+
+  saveJson(globalRegistryFile, loadJson(localRegistryFile, {
+    schema: 1,
+    updatedAt: nowIso(),
+    projects: [],
+  }));
 }
 
 function loadPackagesRegistry(rootDir: string): PackagesRegistry {
@@ -82,11 +122,35 @@ export function upsertProject(rootDir: string, record: Omit<ProjectRecord, "last
     };
   }
   registry.updatedAt = nowIso();
-  saveJson(getProjectsRegistryFile(rootDir), registry);
+  saveJson(getGlobalProjectsRegistryFile(), registry);
+  saveProjectMarker(rootDir, normalized);
 }
 
 export function listProjects(rootDir: string): ProjectsRegistry {
   return loadProjectsRegistry(rootDir);
+}
+
+export function saveProjectMarker(rootDir: string, record: ProjectRecord): void {
+  const marker: ProjectMarker = {
+    schema: 1,
+    tool: "codemem",
+    enabled: true,
+    project: record.project,
+    owner: record.owner,
+    mode: record.mode,
+    sourceProject: record.sourceProject,
+    packageId: record.packageId,
+    packageVersion: record.packageVersion,
+    configuredAt: record.configuredAt,
+    lastUpdatedAt: record.lastUpdatedAt,
+    status: record.status,
+    standardsPolicyVersion: 1,
+  };
+  saveJson(getProjectMarkerFile(rootDir), marker);
+}
+
+export function loadProjectMarker(rootDir: string): ProjectMarker | null {
+  return loadJson<ProjectMarker | null>(getProjectMarkerFile(rootDir), null);
 }
 
 export function registerPackage(rootDir: string, record: Omit<PackageRecord, "builtAt">): void {

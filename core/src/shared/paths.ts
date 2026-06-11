@@ -5,6 +5,20 @@ export function getStateDir(rootDir: string): string {
   return join(rootDir, ".codemem");
 }
 
+export function getGlobalCodememDir(): string {
+  const explicit = process.env.CODEMEM_GLOBAL_DIR;
+  if (explicit) {
+    return resolve(explicit);
+  }
+
+  const installDir = process.env.CODEMEM_HOME;
+  if (installDir) {
+    return resolve(dirname(installDir));
+  }
+
+  return join(process.env.HOME || "", ".codemem");
+}
+
 export function getDocsDir(rootDir: string): string {
   return join(getStateDir(rootDir), "docs");
 }
@@ -41,6 +55,10 @@ export function getRegistryDir(rootDir: string): string {
   return join(getSystemDir(rootDir), "registry");
 }
 
+export function getGlobalRegistryDir(): string {
+  return join(getGlobalCodememDir(), "_system", "registry");
+}
+
 export function getPackagesRootDir(rootDir: string): string {
   return join(getSystemDir(rootDir), "packages");
 }
@@ -57,8 +75,16 @@ export function getProjectsRegistryFile(rootDir: string): string {
   return join(getRegistryDir(rootDir), "projects-registry.json");
 }
 
+export function getGlobalProjectsRegistryFile(): string {
+  return join(getGlobalRegistryDir(), "projects-registry.json");
+}
+
 export function getPackagesRegistryFile(rootDir: string): string {
   return join(getRegistryDir(rootDir), "packages-registry.json");
+}
+
+export function getProjectMarkerFile(rootDir: string): string {
+  return join(rootDir, ".codemem-project.json");
 }
 
 export function getGlobalStandardFile(rootDir: string): string {

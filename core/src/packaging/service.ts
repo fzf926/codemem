@@ -179,6 +179,30 @@ function loadJson(path, fallback) {
   }
 }
 
+function saveJson(path, value) {
+  writeFileSync(path, JSON.stringify(value, null, 2) + "\\n");
+}
+
+function getGlobalCodememDir() {
+  if (process.env.CODEMEM_GLOBAL_DIR) {
+    return resolve(process.env.CODEMEM_GLOBAL_DIR);
+  }
+
+  if (process.env.CODEMEM_HOME) {
+    return resolve(dirname(process.env.CODEMEM_HOME));
+  }
+
+  return join(process.env.HOME || "", ".codemem");
+}
+
+function getGlobalProjectsRegistryFile() {
+  return join(getGlobalCodememDir(), "_system", "registry", "projects-registry.json");
+}
+
+function getProjectMarkerFile(targetDir) {
+  return join(targetDir, ".codemem-project.json");
+}
+
 function sha256File(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
@@ -346,7 +370,7 @@ writeFileSync(join(stateDir, "installed-standard.json"), JSON.stringify({
   sourceProject: manifest.sourceProject
 }, null, 2) + "\\n");
 
-const registryFile = join(stateDir, "_system", "registry", "projects-registry.json");
+const registryFile = getGlobalProjectsRegistryFile();
 mkdirSync(dirname(registryFile), { recursive: true });
 const registry = loadJson(registryFile, { schema: 1, updatedAt: now, projects: [] });
 if (!Array.isArray(registry.projects)) registry.projects = [];
@@ -370,7 +394,22 @@ if (index === -1) {
   registry.projects[index] = { ...registry.projects[index], ...record };
 }
 registry.updatedAt = now;
-writeFileSync(registryFile, JSON.stringify(registry, null, 2) + "\\n");
+saveJson(registryFile, registry);
+saveJson(getProjectMarkerFile(targetDir), {
+  schema: 1,
+  tool: "codemem",
+  enabled: true,
+  project,
+  owner,
+  mode: "installed",
+  sourceProject: manifest.sourceProject,
+  packageId: manifest.packageId,
+  packageVersion: manifest.version,
+  configuredAt: now,
+  lastUpdatedAt: now,
+  status: "configured",
+  standardsPolicyVersion: 1
+});
 
   const installPayload = {
     action: installAction,

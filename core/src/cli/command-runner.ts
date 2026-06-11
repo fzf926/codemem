@@ -61,6 +61,8 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
     console.log(`Agents guide: ${result.agentsFile}`);
     console.log(`Cursor rule: ${result.cursorRuleFile}`);
     console.log(`Git ignore: ${result.gitignoreFile}`);
+    console.log(`Project marker: ${result.projectMarkerFile}`);
+    console.log(`Global registry: ${result.globalRegistryFile}`);
   },
   capture({ args, rootDir }) {
     const project = args.get("project")!;

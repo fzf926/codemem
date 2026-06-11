@@ -424,14 +424,15 @@ node /tmp/codemem-package/shared-standard-demo-1.2.0/install.mjs \
 - `.codemem/installed-standard.json`
 - `.codemem/_system/meta/standards/<project>.env`
 - `.codemem/_system/logs/standards/<project>.jsonl`
-- `.codemem/_system/registry/projects-registry.json`
+- `.codemem-project.json`
+- `~/.codemem/_system/registry/projects-registry.json`
 
 这些文件分别用于：
 
 - 保存安装过来的规范文档和 manifest
 - 记录当前安装状态
-- 记录目标项目的接入信息
-- 记录项目注册表
+- 记录目标项目的共享接入信息，便于其他协作者拉代码后识别这是一个已启用 codemem 的项目
+- 记录当前机器上登记过的项目注册表
 
 ## 7. 如何确认安装成功
 

@@ -43,7 +43,8 @@ export const commandSpecs: CommandSpec[] = [
     outputs: [
       ".codemem/_system/meta/standards/<project>.env",
       ".codemem/_system/logs/standards/<project>.jsonl",
-      ".codemem/_system/registry/projects-registry.json",
+      ".codemem-project.json",
+      "~/.codemem/_system/registry/projects-registry.json",
     ],
   },
   {
