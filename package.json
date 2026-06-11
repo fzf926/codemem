@@ -1,7 +1,7 @@
 {
   "name": "codemem",
   "version": "0.1.0",
-  "description": "gstack-inspired platform for recording, packaging, and installing development standards across projects.",
+  "description": "Platform for recording, packaging, and installing development standards across projects.",
   "type": "module",
   "scripts": {
     "build": "bash scripts/build.sh",
