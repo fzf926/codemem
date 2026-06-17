@@ -90,15 +90,16 @@ node install.mjs --agent claude-code --target-dir /path/to/project
 如果只是让对方快速安装到当前业务项目，可以直接给这条远程命令：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh | bash -s -- --agent cursor --target-dir "$PWD"
+curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh | bash -s -- --agent cursor
 ```
 
-这条命令会临时 clone `codemem` 源码、构建 runtime、安装 agent skill，然后清理临时源码；不会安装 shell 全局 `codemem` 命令。
+这条命令会把当前目录作为业务项目，临时 clone `codemem` 源码、构建 runtime、安装 agent skill，然后清理临时源码；不会安装 shell 全局 `codemem` 命令。同一台机器上，Cursor/Codex 的 skill 安装一次后可供所有项目使用。
 
 如果已经拿到源码仓库，可以在源码仓库中执行：
 
 ```bash
-bash scripts/install.sh --agent cursor --target-dir /path/to/target-project
+cd /path/to/target-project
+bash /path/to/codemem/scripts/install.sh --agent cursor
 ```
 
 安装完成后，日常在目标项目里直接让 Cursor、Codex 或 Claude Code 调用 `codemem` skill；需要检测或升级时，回到 `codemem` 源码项目执行：

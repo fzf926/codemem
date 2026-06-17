@@ -48,15 +48,16 @@ bun run core/src/cli/projects.ts --root .
 如果用户只想在当前业务项目直接安装，可以在业务项目目录执行远程安装命令：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh | bash -s -- --agent cursor --target-dir "$PWD"
+curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh | bash -s -- --agent cursor
 ```
 
-这条命令会临时 clone 当前仓库、构建 runtime、安装 agent skill，然后清理临时源码；不会安装 shell 全局 `codemem` 命令。
+这条命令会把当前目录作为业务项目，临时 clone 当前仓库、构建 runtime、安装 agent skill，然后清理临时源码；不会安装 shell 全局 `codemem` 命令。同一台机器上，Cursor/Codex 的 skill 安装一次后可供所有项目使用。
 
 如果你已经拿到了源码仓库，也可以执行：
 
 ```bash
-bash scripts/install.sh --agent cursor --target-dir <project_dir>
+cd <project_dir>
+bash /path/to/codemem/scripts/install.sh --agent cursor
 ```
 
 也可以直接运行源码 CLI：

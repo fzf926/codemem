@@ -17,8 +17,6 @@ describe("remote install script", () => {
         `file://${root}`,
         "--agent",
         "cursor",
-        "--target-dir",
-        targetDir,
       ], {
         cwd: targetDir,
         encoding: "utf8",
