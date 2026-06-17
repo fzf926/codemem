@@ -4,9 +4,10 @@ set -euo pipefail
 REPO_URL="${CODEMEM_REPO_URL:-https://github.com/fzf926/codemem.git}"
 INSTALL_DIR="${CODEMEM_HOME:-}"
 AGENT="${CODEMEM_AGENT:-cursor}"
-TARGET_DIR="$PWD"
 LANGUAGE="${CODEMEM_LANG:-zh}"
 TEMP_INSTALL_ROOT=""
+CURRENT_DIR=""
+TARGET_DIR=""
 
 usage() {
   cat <<'EOF'
@@ -40,6 +41,17 @@ cleanup_temp_install() {
   fi
 }
 
+resolve_current_dir() {
+  if CURRENT_DIR="$(pwd -P 2>/dev/null)"; then
+    TARGET_DIR="$CURRENT_DIR"
+    return
+  fi
+
+  CURRENT_DIR=""
+  TARGET_DIR="${HOME:-/tmp}"
+  echo "codemem install: current directory is unavailable; using $TARGET_DIR as install context" >&2
+}
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --repo-url)
@@ -70,9 +82,11 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+resolve_current_dir
+
 if [ -z "$INSTALL_DIR" ]; then
-  if is_codemem_checkout "$PWD"; then
-    INSTALL_DIR="$PWD"
+  if [ -n "$CURRENT_DIR" ] && is_codemem_checkout "$CURRENT_DIR"; then
+    INSTALL_DIR="$CURRENT_DIR"
   else
     TEMP_INSTALL_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/codemem-install.XXXXXX")"
     trap cleanup_temp_install EXIT
@@ -104,6 +118,10 @@ for required in git bash bun; do
 done
 
 mkdir -p "$(dirname "$INSTALL_DIR")"
+
+if [ -n "$TEMP_INSTALL_ROOT" ]; then
+  cd "$TEMP_INSTALL_ROOT"
+fi
 
 if is_codemem_checkout "$INSTALL_DIR"; then
   echo "Updating codemem source in $INSTALL_DIR"

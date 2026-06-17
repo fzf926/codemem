@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -34,6 +34,41 @@ describe("remote install script", () => {
       expect(existsSync(join(targetDir, "scripts", "build.sh"))).toBe(false);
     } finally {
       rmSync(targetDir, { recursive: true, force: true });
+      rmSync(skillDir, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  test("falls back when the invoking shell is in a deleted directory", () => {
+    const root = process.cwd();
+    const shellRoot = mkdtempSync(join(tmpdir(), "codemem-deleted-cwd-"));
+    const missingDir = join(shellRoot, "missing");
+    const skillDir = mkdtempSync(join(tmpdir(), "codemem-deleted-cwd-skill-"));
+    mkdirSync(missingDir);
+
+    try {
+      const result = spawnSync("bash", [
+        "-lc",
+        [
+          `cd "${missingDir}"`,
+          `rmdir "${missingDir}"`,
+          `bash "${join(root, "scripts", "install.sh")}" --repo-url "file://${root}" --agent codex`,
+        ].join(" && "),
+      ], {
+        cwd: shellRoot,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          HOME: skillDir,
+        },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("current directory is unavailable");
+      expect(result.stdout).toContain("Cloning codemem into");
+      expect(result.stdout).toContain("codemem agent integration installed successfully");
+      expect(existsSync(join(skillDir, ".codex", "skills", "codemem", "SKILL.md"))).toBe(true);
+    } finally {
+      rmSync(shellRoot, { recursive: true, force: true });
       rmSync(skillDir, { recursive: true, force: true });
     }
   }, 30000);
