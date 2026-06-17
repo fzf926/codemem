@@ -39,6 +39,10 @@ export const commandSpecs: CommandSpec[] = [
         description: "absolute or relative path of the project being registered",
         defaultValue: "current working directory",
       },
+      {
+        name: "--project-doc-path",
+        description: "relative path and filename for the generated project standard document",
+      },
     ],
     outputs: [
       ".codemem/_system/meta/standards/<project>.env",
@@ -109,9 +113,9 @@ export const commandSpecs: CommandSpec[] = [
       },
       {
         name: "--lang",
-        description: "language used in generated labels and copy",
+        description: "generated copy language; only zh is supported",
         defaultValue: "zh",
-        values: ["zh", "en"],
+        values: ["zh"],
       },
     ],
   },
@@ -129,9 +133,9 @@ export const commandSpecs: CommandSpec[] = [
       },
       {
         name: "--lang",
-        description: "language used for generated document copy",
+        description: "generated document language; only zh is supported",
         defaultValue: "zh",
-        values: ["zh", "en"],
+        values: ["zh"],
       },
       {
         name: "--include-drafts",
@@ -142,7 +146,7 @@ export const commandSpecs: CommandSpec[] = [
     ],
     outputs: [
       ".codemem/docs/global/global-standard.md",
-      ".codemem/docs/projects/project-standard.<project_name>.md",
+      ".codemem/docs/projects/project-standard.<project_name>.md or configured --project-doc-path",
       ".codemem/docs/reports/standards-conflicts.md",
     ],
   },
@@ -165,9 +169,9 @@ export const commandSpecs: CommandSpec[] = [
       },
       {
         name: "--lang",
-        description: "language used for package-side generated documents",
+        description: "package-side generated document language; only zh is supported",
         defaultValue: "zh",
-        values: ["zh", "en"],
+        values: ["zh"],
       },
       {
         name: "--package-id",
@@ -273,9 +277,9 @@ export const commandSpecs: CommandSpec[] = [
       },
       {
         name: "--lang",
-        description: "language used in generated prompts and guidance",
+        description: "generated prompt and guidance language; only zh is supported",
         defaultValue: "zh",
-        values: ["zh", "en"],
+        values: ["zh"],
       },
       {
         name: "--json",
@@ -285,8 +289,9 @@ export const commandSpecs: CommandSpec[] = [
       },
     ],
     outputs: [
-      "~/.codex/skills/codemem/runtime/bin/",
-      "~/.codex/skills/codemem/templates/",
+      "skill scripts: ~/.codex/skills/codemem/scripts/",
+      "skill runtime: ~/.codex/skills/codemem/runtime/bin/",
+      "skill templates: ~/.codex/skills/codemem/templates/",
       "Codex: auto-detect ~/.codex/skills/codemem/SKILL.md",
       "Cursor: ~/.codex/skills/codemem/SKILL.md",
       "Claude Code: auto-detect existing <project>/.claude/commands/ or ~/.claude/commands/ before falling back",
@@ -298,7 +303,7 @@ export const commandSpecs: CommandSpec[] = [
     id: "upgrade",
     binName: "codemem-upgrade",
     devScript: "dev:upgrade",
-    summary: "refresh the managed codemem install, global command, and shared agent resources",
+    summary: "rebuild this checkout and refresh shared agent resources",
     example: [
       "codemem upgrade --agent cursor --target-dir <project_dir>",
       "codemem upgrade --agent codex --target-dir <project_dir> --pull true",
@@ -320,9 +325,9 @@ export const commandSpecs: CommandSpec[] = [
       },
       {
         name: "--lang",
-        description: "language used in regenerated prompts and guidance",
+        description: "regenerated prompt and guidance language; only zh is supported",
         defaultValue: "zh",
-        values: ["zh", "en"],
+        values: ["zh"],
       },
       {
         name: "--pull",
@@ -332,19 +337,17 @@ export const commandSpecs: CommandSpec[] = [
       },
     ],
     outputs: [
-      "~/.local/bin/codemem",
-      "~/.codemem/_system/install.json",
-      "~/.codemem/source/",
       "~/.codex/skills/codemem/SKILL.md",
-      "~/.codex/skills/codemem/runtime/bin/",
-      "~/.codex/skills/codemem/templates/",
+      "skill scripts: ~/.codex/skills/codemem/scripts/",
+      "skill runtime: ~/.codex/skills/codemem/runtime/bin/",
+      "skill templates: ~/.codex/skills/codemem/templates/",
     ],
   },
   {
     id: "uninstall",
     binName: "codemem-uninstall",
     devScript: "dev:uninstall",
-    summary: "uninstall codemem global resources",
+    summary: "clean codemem agent resources and optional project data",
     example: [
       "codemem uninstall",
       "codemem uninstall --delete-project-data true --target-dir <project_dir>",
@@ -363,12 +366,12 @@ export const commandSpecs: CommandSpec[] = [
       },
       {
         name: "--install-dir",
-        description: "codemem source install directory to remove",
+        description: "legacy codemem source install directory to remove",
         defaultValue: "~/.codemem/source",
       },
       {
         name: "--bin-dir",
-        description: "directory containing the global codemem command shim",
+        description: "legacy directory containing the global codemem command shim",
         defaultValue: "~/.local/bin",
       },
       {
@@ -384,10 +387,9 @@ export const commandSpecs: CommandSpec[] = [
       },
     ],
     outputs: [
-      "removes ~/.local/bin/codemem when it is the codemem shim",
       "removes ~/.codex/skills/codemem/",
       "removes ~/.claude/commands/codemem.md when present",
-      "removes ~/.codemem/source/",
+      "removes legacy ~/.local/bin/codemem and ~/.codemem/source/ when present",
       "optionally removes <target-dir>/.codemem/, .cursor/rules/codemem-standards.mdc, codemem AGENTS.md block, and .gitignore entry",
     ],
   },

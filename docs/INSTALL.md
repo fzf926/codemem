@@ -4,7 +4,7 @@
 
 ## 1. 适用场景
 
-当你希望把某个项目里沉淀出的开发规范分享给其他项目时，推荐优先使用 `codemem` 全局命令。它可以把 `codemem` 作为 agent 集成安装到 `Codex`、`Cursor` 或 `Claude Code` 中，让 AI 在当前项目里自动完成初始化、记录规范，并默认一轮生成规范文档。
+当你希望把某个项目里沉淀出的开发规范分享给其他项目时，推荐在 `codemem` 源码项目内执行安装和升级命令，只给目标项目安装 agent 集成，不再安装 shell 全局 `codemem` 命令。安装后 AI 可以在当前项目里自动完成初始化、记录规范，并默认一轮生成规范文档。
 
 如果你只是要分发一个可分享安装包给别人，也可以继续使用后半部分的“导出安装包”流程。
 
@@ -12,7 +12,7 @@
 
 规范提供方需要：
 
-- 能运行全局 `codemem` 命令，或能运行当前仓库中的安装脚本
+- 能运行当前仓库中的安装脚本或源码 CLI
 - 已完成项目初始化
 - 已录入规范并生成文档
 
@@ -31,13 +31,7 @@
 scripts/install.sh
 ```
 
-如果脚本已经发布在 GitHub，对方在自己的目标项目目录里执行：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh | CODEMEM_REPO_URL=https://github.com/fzf926/codemem.git bash -s -- --agent cursor --target-dir .
-```
-
-如果对方已经拿到了源码仓库，也可以执行：
+对方拿到源码仓库后，在 `codemem` 源码项目内执行：
 
 ```bash
 bash scripts/install.sh --agent cursor --target-dir .
@@ -45,32 +39,9 @@ bash scripts/install.sh --agent cursor --target-dir .
 
 这个脚本会自动：
 
-- clone 或更新 `codemem` 源码到 `~/.codemem/source`
 - 执行 `bash scripts/build.sh`
-- 写入全局命令 `~/.local/bin/codemem`
-- 写入安装元数据 `~/.codemem/_system/install.json`
-- 把 `~/.local/bin` 加入 shell profile，例如 `~/.zshrc`
-- 安装或刷新 `~/.codex/skills/codemem/` 下的 skill、runtime 和 templates
-
-如果对方通过 GitHub HTTPS 拉取源码，可以这样执行：
-
-```bash
-CODEMEM_REPO_URL=https://github.com/fzf926/codemem.git bash scripts/install.sh --agent cursor --target-dir .
-```
-
-安装后，用户日常只需要使用：
-
-```bash
-codemem upgrade
-codemem agent detect --agent cursor --target-dir .
-codemem projects
-```
-
-如果终端提示找不到 `codemem`，把 `~/.local/bin` 加到 `PATH`：
-
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
+- 安装或刷新 `~/.codex/skills/codemem/` 下的 skill、scripts、runtime 和 templates
+- 为指定目标项目写入对应 agent 集成
 
 ## 4. 已安装后的最简流程：直接给指定 agent 安装集成
 
@@ -79,7 +50,7 @@ export PATH="$HOME/.local/bin:$PATH"
 ### 第一步：执行统一安装器
 
 ```bash
-codemem agent install
+bun run core/src/cli/agent.ts --root . install
 ```
 
 CLI 会让你选择目标 agent：
@@ -91,17 +62,17 @@ CLI 会让你选择目标 agent：
 也可以直接非交互执行：
 
 ```bash
-codemem agent install --agent codex --target-dir /path/to/target-project
-codemem agent install --agent cursor --target-dir /path/to/target-project
-codemem agent install --agent claude-code --target-dir /path/to/target-project
+bun run core/src/cli/agent.ts --root . install --agent codex --target-dir /path/to/target-project
+bun run core/src/cli/agent.ts --root . install --agent cursor --target-dir /path/to/target-project
+bun run core/src/cli/agent.ts --root . install --agent claude-code --target-dir /path/to/target-project
 ```
 
 ### 第二步：安装器会做什么
 
 安装器会自动完成这些动作：
 
-- 把共享 runtime 二进制安装到全局 skill 目录 `~/.codex/skills/codemem/runtime/bin/`
-- 把共享文档模板安装到全局 skill 目录 `~/.codex/skills/codemem/templates/`
+- 把 skill 脚本和 runtime 安装到 `~/.codex/skills/codemem/scripts/` 与 `~/.codex/skills/codemem/runtime/bin/`
+- 把共享文档模板安装到 `~/.codex/skills/codemem/templates/`
 - 为所选 agent 写入对应集成文件
 - 如果你没有传 `--skill-dir`，会先自动探测该 agent 常见的已有安装目录，探测不到才回退到默认位置
 - 如果在交互式终端里探测到的是“非默认目录”，CLI 会先询问你是否确认使用
@@ -139,9 +110,9 @@ AI 的默认行为是：
 如果你想确认当前项目和当前 agent 是否已经接好，可以执行：
 
 ```bash
-codemem agent detect --agent codex --target-dir /path/to/target-project
-codemem agent detect --agent cursor --target-dir /path/to/target-project
-codemem agent detect --agent claude-code --target-dir /path/to/target-project
+bun run core/src/cli/agent.ts --root . detect --agent codex --target-dir /path/to/target-project
+bun run core/src/cli/agent.ts --root . detect --agent cursor --target-dir /path/to/target-project
+bun run core/src/cli/agent.ts --root . detect --agent claude-code --target-dir /path/to/target-project
 ```
 
 输出会显示：
@@ -163,7 +134,7 @@ codemem agent detect --agent claude-code --target-dir /path/to/target-project
 如果你要在脚本或 CI 中消费检测结果，可以加：
 
 ```bash
-codemem agent detect --agent codex --target-dir /path/to/target-project --json
+bun run core/src/cli/agent.ts --root . detect --agent codex --target-dir /path/to/target-project --json
 ```
 
 ### 第五步：后续待办
@@ -173,79 +144,50 @@ codemem agent detect --agent codex --target-dir /path/to/target-project --json
 
 ### 第六步：后续如何更新
 
-如果你本机已经装好了 `codemem` 的 agent 集成，后续更新最推荐直接使用：
+如果你本机已经装好了 `codemem` 的 agent 集成，后续更新最推荐回到源码项目执行：
 
 ```bash
-codemem upgrade --agent cursor --target-dir /path/to/target-project --lang zh
-```
-
-如果你当前终端已经在目标项目目录下，而且本机已安装对应 agent 集成，也可以直接：
-
-```bash
-codemem upgrade
+bun run core/src/cli/upgrade.ts --root . --agent cursor --target-dir /path/to/target-project --lang zh
 ```
 
 这时它会自动：
 
-- 把当前工作目录视为目标项目
+- 重建当前源码项目
 - 根据已安装集成自动识别当前 agent
-- 刷新受管安装目录 `~/.codemem/source/`
-- 重写全局命令 `~/.local/bin/codemem`
-- 更新安装元数据 `~/.codemem/_system/install.json`
-- 重新安装最新的全局共享资源到 `~/.codex/skills/codemem/`
+- 重新安装最新 skill 资源到 `~/.codex/skills/codemem/`
 
 如果你希望更新前先拉最新代码，可以执行：
 
 ```bash
-codemem upgrade --pull true
+bun run core/src/cli/upgrade.ts --root . --agent cursor --target-dir /path/to/target-project --pull true
 ```
-
-### 第六步补充：如果你正在开发 codemem 本体
-
-如果你正在本地修改 `codemem` 源码仓库本身，而不是只在业务项目里使用它，推荐在当前源码仓库里执行：
-
-```bash
-./bin/codemem upgrade --agent cursor --target-dir /path/to/target-project
-```
-
-这条命令会先把你当前源码仓库同步到受管安装目录 `~/.codemem/source/`，然后再统一完成：
-
-- 重新构建 CLI
-- 重写全局命令 `~/.local/bin/codemem`
-- 更新 `~/.codemem/_system/install.json`
-- 刷新 agent 集成与共享 runtime/templates
-
-这样后续你再直接执行 `codemem upgrade`，走的仍然是这一份受管安装目录，不会再出现“当前开发仓库是一份、全局安装又是另一份”的漂移。
 
 ### 第七步：后续如何卸载
 
 如果你后续不想继续使用 `codemem`，可以执行：
 
 ```bash
-codemem uninstall
+bun run core/src/cli/uninstall.ts --root . --target-dir /path/to/target-project
 ```
 
 默认卸载会删除：
 
-- 全局命令 shim，例如 `~/.local/bin/codemem`
-- 安装元数据，例如 `~/.codemem/_system/install.json`
-- 全局 skill、runtime 和 templates，例如 `~/.codex/skills/codemem/`
+- agent skill、runtime 和 templates，例如 `~/.codex/skills/codemem/`
 - Claude Code 命令集成，例如 `~/.claude/commands/codemem.md`
-- 本机源码安装目录，例如 `~/.codemem/source/`
-- shell profile 中由安装脚本写入的 `codemem` PATH 块
+- 旧版全局命令 shim、安装元数据、受管源码目录和 shell profile PATH 块，如果它们存在
 
 默认不会删除目标项目里已经生成的 `.codemem/` 规范历史，也不会改动 `AGENTS.md`、`.cursor/rules/codemem-standards.mdc` 或 `.gitignore`，避免误删项目沉淀。
 
 如果你确认也要删除某个目标项目的历史规范和 codemem 项目侧引用，再显式执行：
 
 ```bash
-codemem uninstall --delete-project-data true --target-dir /path/to/target-project
+bun run core/src/cli/uninstall.ts --root . --delete-project-data true --target-dir /path/to/target-project
 ```
 
 如果你想先预览会删除哪些内容，可以加 dry run：
 
 ```bash
-codemem uninstall --dry-run true
+bun run core/src/cli/uninstall.ts --root . --dry-run true --target-dir /path/to/target-project
 ```
 
 
@@ -256,7 +198,7 @@ codemem uninstall --dry-run true
 如果当前项目还没有接入 `codemem`，先执行：
 
 ```bash
-codemem init --project <project_name> --owner <owner_name>
+bun run core/src/cli/init.ts --root . --project <project_name> --owner <owner_name>
 ```
 
 ### 第二步：持续记录开发规范
@@ -264,7 +206,7 @@ codemem init --project <project_name> --owner <owner_name>
 在开发过程中，把约定逐条录入：
 
 ```bash
-codemem capture \
+bun run core/src/cli/capture.ts --root . \
   --project <project_name> \
   --type code \
   --title "组件命名规则" \
@@ -283,7 +225,7 @@ codemem capture \
 ### 第三步：生成规范文档
 
 ```bash
-codemem build --project <project_name> --lang zh
+bun run core/src/cli/build.ts --root . --project <project_name> --lang zh
 ```
 
 生成产物位于 `.codemem/docs/`：
@@ -295,7 +237,7 @@ codemem build --project <project_name> --lang zh
 ### 第四步：生成分享安装包
 
 ```bash
-codemem package --project <project_name> --version <version> --lang zh
+bun run core/src/cli/package.ts --root . --project <project_name> --version <version> --lang zh
 ```
 
 生成产物位于 `.codemem/_system/packages/standards/`：
@@ -323,24 +265,24 @@ codemem package --project <project_name> --version <version> --lang zh
 
 使用方拿到安装包后，有两种方式。
 
-### 方式 A：通过 `codemem agent install` 安装 agent 集成
+### 方式 A：通过源码 CLI 安装 agent 集成
 
 如果对方也拿到了当前仓库，最推荐直接执行：
 
 ```bash
-codemem agent install --agent codex --target-dir /path/to/target-project
+bun run core/src/cli/agent.ts --root . install --agent codex --target-dir /path/to/target-project
 ```
 
 或者：
 
 ```bash
-codemem agent install --agent cursor --target-dir /path/to/target-project
-codemem agent install --agent claude-code --target-dir /path/to/target-project
+bun run core/src/cli/agent.ts --root . install --agent cursor --target-dir /path/to/target-project
+bun run core/src/cli/agent.ts --root . install --agent claude-code --target-dir /path/to/target-project
 ```
 
-### 方式 B：通过 `codemem install` 安装旧版共享规范包
+### 方式 B：通过源码 CLI 安装共享规范包
 
-这适合已经在本地具备 `codemem` 运行环境的团队。
+这适合已经在本地具备 `codemem` 源码项目的团队。
 
 #### 第一步：准备目标项目目录
 
@@ -353,7 +295,7 @@ codemem agent install --agent claude-code --target-dir /path/to/target-project
 #### 第二步：执行安装
 
 ```bash
-codemem install \
+bun run core/src/cli/install.ts --root . \
   --package /path/to/shared-standard-<project>-<version>.tgz \
   --target /path/to/target-project \
   --project <target_project_name> \
@@ -371,7 +313,7 @@ codemem install \
 如果是在脚本、CI 或其他工具链中调用，建议使用：
 
 ```bash
-codemem install \
+bun run core/src/cli/install.ts --root . \
   --package /path/to/shared-standard-<project>-<version>.tgz \
   --target /path/to/target-project \
   --project <target_project_name> \
@@ -476,7 +418,7 @@ ls -la /path/to/target-project/.codemem
 如果你通过主 CLI 安装，可以在源仓库里查看已接入项目：
 
 ```bash
-codemem projects
+bun run core/src/cli/projects.ts --root .
 ```
 
 ## 8. 升级、降级、重装规则
@@ -492,7 +434,7 @@ codemem projects
 示例：
 
 ```bash
-codemem install \
+bun run core/src/cli/install.ts --root . \
   --package /path/to/shared-standard-demo-1.1.0.tgz \
   --target /path/to/target-project \
   --project target-project \
@@ -520,38 +462,86 @@ cat /path/to/shared-standard-<project>-<version>.tgz.sha256
 
 ## 10. 导出可分享 agent 安装包
 
-如果你希望把 agent 集成能力整体打包给别人使用，可以执行：
+如果你希望把 agent 集成能力整体打包给别人使用，推荐用这个流程。导出的包是自包含的，使用方不需要拿到 `codemem` 源码仓库。
 
 ```bash
-codemem agent export --agent all --target-dir /path/to/output --version 1.0.0
+bun run core/src/cli/agent.ts --root . export --agent all --target-dir /path/to/output --version 1.0.0
 ```
+
+当前项目的默认导出路径可以直接使用：
+
+```bash
+bun run core/src/cli/agent.ts --root . export --agent all --target-dir .codemem/_system/packages/agents --version 0.1.0 --lang zh
+```
+
+对应产物示例：
+
+- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0/`
+- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0.tgz`
+- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0.tgz.sha256`
 
 也可以只导出某一个 agent：
 
 ```bash
-codemem agent export --agent codex --target-dir /path/to/output --version 1.0.0
+bun run core/src/cli/agent.ts --root . export --agent codex --target-dir /path/to/output --version 1.0.0
 ```
 
 如果要在脚本中读取导出结果：
 
 ```bash
-codemem agent export --agent codex --target-dir /path/to/output --version 1.0.0 --json
+bun run core/src/cli/agent.ts --root . export --agent codex --target-dir /path/to/output --version 1.0.0 --json
 ```
 
 导出产物会包含：
 
 - agent runtime 二进制
+- skill JavaScript 脚本
 - 文档模板
-- 各 agent 的集成文件
+- 各 agent 的集成文件模板
 - `install.mjs`
 - `.tgz`
 - `.sha256`
 
-拿到导出包后，对方可以直接：
+你需要发给对方：
+
+- `<package-name>-<version>.tgz`
+- `<package-name>-<version>.tgz.sha256`
+
+拿到导出包后，对方先校验摘要：
+
+```bash
+shasum -a 256 <package-name>-<version>.tgz
+cat <package-name>-<version>.tgz.sha256
+```
+
+然后解压并安装到目标项目：
+
+```bash
+tar -xzf <package-name>-<version>.tgz
+cd <package-name>-<version>
+node install.mjs --agent cursor --target-dir /path/to/target-project
+```
+
+也可以安装到 Codex 或 Claude Code：
 
 ```bash
 node install.mjs --agent codex --target-dir /path/to/target-project
+node install.mjs --agent claude-code --target-dir /path/to/target-project
 ```
+
+如果对方的 agent skill 目录比较特殊，可以显式指定：
+
+```bash
+node install.mjs --agent cursor --target-dir /path/to/target-project --skill-dir /path/to/skill-dir
+```
+
+`install.mjs` 会在对方机器上按实际路径写入 `SKILL.md` 或 `codemem.md`，不会使用打包者本机路径。
+
+安装完成后：
+
+- Cursor/Codex 会从 `~/.codex/skills/codemem/` 读取 skill。
+- Claude Code 默认会在目标项目写入 `.claude/commands/codemem.md`，并共用 `~/.codex/skills/codemem/` 下的 runtime。
+- 目标业务项目不需要复制 runtime 或模板；后续由 agent 在项目内生成 `.codemem/` 状态和规范文档。
 
 ## 11. 推荐给外部使用方的最小交付说明
 
@@ -560,9 +550,9 @@ node install.mjs --agent codex --target-dir /path/to/target-project
 ```text
 1. 安装要求：Node.js >= 18
 2. 你会收到一个 .tgz 安装包和一个 .sha256 校验文件
-3. 如果你有 codemem CLI，优先使用 codemem install 安装
-4. 如果没有，也可以解压后直接执行 install.mjs
-5. 安装完成后，目标项目的 .codemem/ 目录中会留下规范文档和安装记录
+3. 校验 .tgz 的 SHA256 摘要
+4. 解压后进入包目录，执行 node install.mjs --agent cursor --target-dir <你的项目目录>
+5. 安装完成后，在 Cursor/Codex/Claude Code 中直接使用 codemem skill
 ```
 
 ## 12. 常见命令速查
@@ -570,24 +560,24 @@ node install.mjs --agent codex --target-dir /path/to/target-project
 推荐入口：
 
 ```bash
-codemem agent install
-codemem agent detect --agent codex --target-dir /path/to/target-project
-codemem agent export --agent all --target-dir /path/to/output --version 1.0.0
+bun run core/src/cli/agent.ts --root . install
+bun run core/src/cli/agent.ts --root . detect --agent codex --target-dir /path/to/target-project
+bun run core/src/cli/agent.ts --root . export --agent all --target-dir /path/to/output --version 1.0.0
 ```
 
 提供方：
 
 ```bash
-codemem init --project demo --owner cm
-codemem capture --project demo --type code --title "命名规则" --rule "组件使用 PascalCase" --priority P1 --status active --scope global
-codemem build --project demo --lang zh
-codemem package --project demo --version 1.0.0 --lang zh
+bun run core/src/cli/init.ts --root . --project demo --owner cm
+bun run core/src/cli/capture.ts --root . --project demo --type code --title "命名规则" --rule "组件使用 PascalCase" --priority P1 --status active --scope global
+bun run core/src/cli/build.ts --root . --project demo --lang zh
+bun run core/src/cli/package.ts --root . --project demo --version 1.0.0 --lang zh
 ```
 
 使用方：
 
 ```bash
-codemem install \
+bun run core/src/cli/install.ts --root . \
   --package /path/to/shared-standard-demo-1.0.0.tgz \
   --target /path/to/target-project \
   --project target-project \

@@ -1,5 +1,5 @@
-import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, isAbsolute, join, normalize, resolve } from "node:path";
 
 export function getStateDir(rootDir: string): string {
   return join(rootDir, ".codemem");
@@ -91,8 +91,52 @@ export function getGlobalStandardFile(rootDir: string): string {
   return join(getGlobalDocsDir(rootDir), "global-standard.md");
 }
 
-export function getProjectStandardFile(rootDir: string, project: string): string {
-  return join(getProjectDocsDir(rootDir), `project-standard.${project}.md`);
+export function getDefaultProjectStandardRelativePath(project: string): string {
+  return `.codemem/docs/projects/project-standard.${project}.md`;
+}
+
+export function normalizeProjectDocPath(value: string | undefined): string | undefined {
+  if (value === undefined || value.trim() === "") {
+    return undefined;
+  }
+
+  const input = value.trim().replaceAll("\\", "/");
+  const hasWindowsDrive = /^[A-Za-z]:\//.test(input);
+  if (isAbsolute(input) || hasWindowsDrive || input.endsWith("/")) {
+    throw new Error("projectDocPath must be a safe relative file path inside the project");
+  }
+
+  const normalized = normalize(input).replaceAll("\\", "/");
+  if (normalized === "." || normalized === ".." || normalized.startsWith("../") || normalized.includes("\0")) {
+    throw new Error("projectDocPath must be a safe relative file path inside the project");
+  }
+
+  return normalized;
+}
+
+export function getProjectStandardRelativePath(rootDir: string, project: string, projectDocPath?: string): string {
+  const explicit = normalizeProjectDocPath(projectDocPath);
+  if (explicit) {
+    return explicit;
+  }
+
+  try {
+    const marker = JSON.parse(readFileSync(getProjectMarkerFile(rootDir), "utf8")) as { projectDocPath?: unknown };
+    const fromMarker = typeof marker.projectDocPath === "string"
+      ? normalizeProjectDocPath(marker.projectDocPath)
+      : undefined;
+    if (fromMarker) {
+      return fromMarker;
+    }
+  } catch {
+    // Missing or malformed markers fall back to the legacy generated path.
+  }
+
+  return getDefaultProjectStandardRelativePath(project);
+}
+
+export function getProjectStandardFile(rootDir: string, project: string, projectDocPath?: string): string {
+  return join(rootDir, getProjectStandardRelativePath(rootDir, project, projectDocPath));
 }
 
 export function getStandardsConflictsFile(rootDir: string): string {

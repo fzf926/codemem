@@ -1,6 +1,6 @@
 import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { getInstallPaths, isManagedCodememShim, loadInstallMetadata } from "../install/service";
+import { loadJson } from "../shared/fs";
 import { safeCurrentWorkingDir } from "../shared/cwd";
 
 export interface UninstallOptions {
@@ -19,6 +19,18 @@ export interface UninstallResult {
   skipped: string[];
 }
 
+interface LegacyInstallMetadata {
+  schema: 1;
+  activeSourceDir?: string;
+}
+
+interface LegacyInstallPaths {
+  managedInstallDir: string;
+  binDir: string;
+  profileFile: string;
+  metadataFile: string;
+}
+
 const AGENTS_MANAGED_START = "<!-- codemem:managed:start -->";
 const AGENTS_MANAGED_END = "<!-- codemem:managed:end -->";
 
@@ -29,6 +41,31 @@ function defaultHomeDir(): string {
 function defaultProfileFile(homeDir: string): string {
   const shell = process.env.SHELL || "";
   return join(homeDir, shell.endsWith("bash") ? ".bashrc" : ".zshrc");
+}
+
+function getLegacyInstallPaths(options: {
+  homeDir: string;
+  installDir?: string;
+  binDir?: string;
+  profileFile?: string;
+}): LegacyInstallPaths {
+  const homeDir = resolve(options.homeDir);
+  const managedInstallDir = resolve(options.installDir || process.env.CODEMEM_HOME || join(homeDir, ".codemem", "source"));
+  const binDir = resolve(options.binDir || process.env.CODEMEM_BIN_DIR || join(homeDir, ".local", "bin"));
+  return {
+    managedInstallDir,
+    binDir,
+    profileFile: resolve(options.profileFile || process.env.CODEMEM_PROFILE || defaultProfileFile(homeDir)),
+    metadataFile: join(homeDir, ".codemem", "_system", "install.json"),
+  };
+}
+
+function loadLegacyInstallMetadata(metadataFile: string): LegacyInstallMetadata | null {
+  const data = loadJson<LegacyInstallMetadata | null>(metadataFile, null);
+  if (!data || data.schema !== 1) {
+    return null;
+  }
+  return data;
 }
 
 function removePath(path: string, result: UninstallResult, dryRun: boolean): void {
@@ -97,7 +134,14 @@ function safeRemoveShim(path: string, installDir: string, activeSourceDir: strin
     return;
   }
 
-  if (!isManagedCodememShim(path, installDir, activeSourceDir)) {
+  const content = readText(path) || "";
+  const isCodememShim = content.includes("codemem") && (
+    content.includes(`${resolve(installDir, "bin", "codemem")}`)
+    || (activeSourceDir ? content.includes(`${resolve(activeSourceDir, "bin", "codemem")}`) : false)
+    || content.includes("/bin/codemem")
+  );
+
+  if (!isCodememShim) {
     result.kept.push(`${path} (not a codemem shim)`);
     return;
   }
@@ -214,7 +258,7 @@ function removeProjectArtifacts(installDir: string, targetDir: string, result: U
 
 export function uninstallCodemem(options: UninstallOptions = {}): UninstallResult {
   const homeDir = options.homeDir || defaultHomeDir();
-  const paths = getInstallPaths({
+  const paths = getLegacyInstallPaths({
     homeDir,
     installDir: options.installDir,
     binDir: options.binDir,
@@ -225,12 +269,7 @@ export function uninstallCodemem(options: UninstallOptions = {}): UninstallResul
   const targetDir = resolve(options.targetDir || safeCurrentWorkingDir());
   const profileFile = paths.profileFile || defaultProfileFile(homeDir);
   const dryRun = options.dryRun === true;
-  const metadata = loadInstallMetadata({
-    homeDir,
-    installDir,
-    binDir,
-    profileFile,
-  });
+  const metadata = loadLegacyInstallMetadata(paths.metadataFile);
 
   const result: UninstallResult = { removed: [], kept: [], skipped: [] };
 

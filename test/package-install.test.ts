@@ -562,6 +562,80 @@ describe("package and install flow", () => {
 });
 
 describe("project init guidance", () => {
+  test("supports a project-specific standard document path and filename", () => {
+    const root = makeRoot("codemem-project-doc-path-");
+    setGlobalDir(root);
+    prepareRoot(root);
+
+    try {
+      const initialized = initProject({
+        rootDir: root,
+        project: "custom-doc-project",
+        owner: "cm",
+        projectPath: root,
+        projectDocPath: "docs/standards/current-project.md",
+      });
+
+      captureRule({
+        rootDir: root,
+        project: "custom-doc-project",
+        type: "architecture",
+        title: "策略分发",
+        rule: "MQ 消费者按 topic 和 tag 分发到稳定策略。",
+        priority: "P1",
+        status: "active",
+        scope: "project",
+        source: "test",
+        lang: "zh",
+      });
+
+      const outputs = buildPackage({
+        rootDir: root,
+        project: "custom-doc-project",
+        version: "1.0.0",
+        lang: "zh",
+        packageId: "shared-standard-custom-doc-project",
+      });
+
+      const customDoc = join(root, "docs", "standards", "current-project.md");
+      expect(existsSync(customDoc)).toBe(true);
+      expect(readFileSync(customDoc, "utf8")).toContain("策略分发");
+      expect(existsSync(join(root, ".codemem", "docs", "projects", "project-standard.custom-doc-project.md"))).toBe(false);
+      expect(readFileSync(initialized.agentsFile, "utf8")).toContain("docs/standards/current-project.md");
+      expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("docs/standards/current-project.md");
+      expect(readFileSync(join(root, ".codemem-project.json"), "utf8")).toContain("\"projectDocPath\": \"docs/standards/current-project.md\"");
+      expect(outputs.artifactDir).toContain("shared-standard-custom-doc-project");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects unsafe project standard document paths", () => {
+    const root = makeRoot("codemem-project-doc-path-invalid-");
+    setGlobalDir(root);
+    prepareRoot(root);
+
+    try {
+      expect(() => initProject({
+        rootDir: root,
+        project: "bad-doc-project",
+        owner: "cm",
+        projectPath: root,
+        projectDocPath: "../outside.md",
+      })).toThrow("projectDocPath must be a safe relative file path");
+
+      expect(() => initProject({
+        rootDir: root,
+        project: "bad-doc-project",
+        owner: "cm",
+        projectPath: root,
+        projectDocPath: "/tmp/outside.md",
+      })).toThrow("projectDocPath must be a safe relative file path");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("adds .codemem to .gitignore only once", () => {
     const root = makeRoot("codemem-gitignore-");
     setGlobalDir(root);

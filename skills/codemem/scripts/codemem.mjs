@@ -1,84 +1,11 @@
-import { copyFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
-import { ensureDir } from "../shared/fs";
-import {
-  getGlobalDocsDir,
-  getGlobalProjectsRegistryFile,
-  getGlobalStandardFile,
-  getLogsDir,
-  getMetaDir,
-  getProjectMarkerFile,
-  getProjectStandardFile,
-  getProjectStandardRelativePath,
-  getReportsDir,
-  getStandardsConflictsFile,
-  getTemplatesDir,
-  normalizeProjectDocPath,
-} from "../shared/paths";
-import { nowIso } from "../shared/time";
-import { migrateLegacyStateLayout } from "../shared/state-layout";
-import { upsertProject } from "../registry/service";
+#!/usr/bin/env node
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, normalize, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-export interface InitOptions {
-  rootDir: string;
-  project: string;
-  owner: string;
-  projectPath: string;
-  projectDocPath?: string;
-}
+const scriptDir = dirname(fileURLToPath(import.meta.url));
 
-export interface CaptureOptions {
-  rootDir: string;
-  project: string;
-  type: string;
-  title: string;
-  rule: string;
-  priority: string;
-  status: string;
-  scope: string;
-  source: string;
-  lang: string;
-}
-
-export interface BuildOptions {
-  rootDir: string;
-  project: string;
-  lang: string;
-  includeDrafts: boolean;
-}
-
-export interface InitResult {
-  metaFile: string;
-  logFile: string;
-  agentsFile: string;
-  cursorRuleFile: string;
-  gitignoreFile: string;
-  projectMarkerFile: string;
-  globalRegistryFile: string;
-}
-
-interface Rule {
-  schema: number;
-  ts: string;
-  project: string;
-  type: string;
-  title: string;
-  rule: string;
-  priority: string;
-  status: string;
-  scope: string;
-  source: string;
-  lang: string;
-}
-
-const priorityRank = new Map([
-  ["P0", 0],
-  ["P1", 1],
-  ["P2", 2],
-  ["P3", 3],
-]);
-
-const copy = {
+const COPY = {
   zh: {
     noRules: "- 暂无规范条目。\n",
     noConflicts: "- 暂未发现冲突。\n",
@@ -94,156 +21,18 @@ const copy = {
     reportTitle: "# 规范冲突报告",
     dedupeTitle: "## 去重说明",
   },
-} as const;
+};
 
-function normalizeText(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function parseJsonl(file: string): Rule[] {
-  if (!existsSync(file)) return [];
-  return readFileSync(file, "utf8")
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .flatMap((line) => {
-      try {
-        const item = JSON.parse(line) as Partial<Rule>;
-        return [{
-          schema: Number(item.schema || 1),
-          ts: item.ts || "",
-          project: item.project || basename(file, ".jsonl"),
-          type: item.type || "general",
-          title: item.title || "Untitled",
-          rule: item.rule || "",
-          priority: item.priority || "P2",
-          status: item.status || "active",
-          scope: item.scope || "project",
-          source: item.source || "manual",
-          lang: item.lang || "zh",
-        }];
-      } catch {
-        return [];
-      }
-    })
-    .filter((item) => item.rule.trim());
-}
-
-function readAllRules(rootDir: string): Rule[] {
-  const logsDir = getLogsDir(rootDir);
-  ensureDir(logsDir);
-  return readdirSync(logsDir)
-    .filter((file) => file.endsWith(".jsonl"))
-    .flatMap((file) => parseJsonl(join(logsDir, file)));
-}
-
-function dedupeRules(rules: Rule[]): { rules: Rule[]; duplicates: Rule[] } {
-  const exact = new Map<string, Rule>();
-  const duplicates: Rule[] = [];
-  for (const rule of rules) {
-    const key = [
-      rule.project,
-      rule.scope,
-      rule.type,
-      normalizeText(rule.title),
-      normalizeText(rule.rule),
-      rule.status,
-    ].join("|");
-    const existing = exact.get(key);
-    if (!existing || rule.ts > existing.ts) {
-      if (existing) duplicates.push(existing);
-      exact.set(key, rule);
-    } else {
-      duplicates.push(rule);
-    }
-  }
-  return { rules: [...exact.values()], duplicates };
-}
-
-function sortRules(rules: Rule[]): Rule[] {
-  return [...rules].sort((left, right) => {
-    const diff = (priorityRank.get(left.priority) ?? 99) - (priorityRank.get(right.priority) ?? 99);
-    if (diff !== 0) return diff;
-    return [left.type, left.title, left.project].join("|").localeCompare([right.type, right.title, right.project].join("|"));
-  });
-}
-
-function findConflicts(rules: Rule[]) {
-  const groups = new Map<string, Rule[]>();
-  for (const rule of rules.filter((item) => item.status === "active")) {
-    const key = [
-      rule.scope,
-      rule.scope === "project" ? rule.project : "global",
-      rule.type,
-      normalizeText(rule.title),
-    ].join("|");
-    const group = groups.get(key) || [];
-    group.push(rule);
-    groups.set(key, group);
-  }
-  return [...groups.values()]
-    .map((items) => {
-      const unique = new Map(items.map((item) => [normalizeText(item.rule), item]));
-      return unique.size > 1 ? [...unique.values()] : null;
-    })
-    .filter((item): item is Rule[] => Boolean(item));
-}
-
-function renderRules(rules: Rule[], noRules: string, globalMode = false): string {
-  const active = sortRules(rules.filter((rule) => rule.status === "active"));
-  if (active.length === 0) return noRules;
-  return `${active.map((rule) => {
-    const prefix = globalMode
-      ? `[${rule.project}][${rule.scope}][${rule.type}][${rule.priority}]`
-      : `[${rule.scope}][${rule.type}][${rule.priority}]`;
-    return `- ${prefix} **${rule.title}**: ${rule.rule}`;
-  }).join("\n")}\n`;
-}
-
-function renderRulesByType(rules: Rule[], type: string, noRules: string, globalMode = false): string {
-  return renderRules(rules.filter((rule) => rule.type === type), noRules, globalMode);
-}
-
-function renderStatusRules(rules: Rule[], status: string, noRules: string): string {
-  const filtered = sortRules(rules.filter((rule) => rule.status === status));
-  if (filtered.length === 0) return noRules;
-  return `${filtered.map((rule) => `- [${rule.type}][${rule.priority}] **${rule.title}**: ${rule.rule}`).join("\n")}\n`;
-}
-
-function renderConflicts(conflicts: Rule[][], noConflicts: string, header: string): string {
-  if (conflicts.length === 0) return noConflicts;
-  return `${header}${conflicts.map((items) => {
-    const first = items[0];
-    const rules = items.map((item) => `${item.project}: ${item.rule}`).join("<br>");
-    return `| ${first.scope} | ${first.type} | ${first.title} | ${rules} |`;
-  }).join("\n")}\n`;
-}
-
-function renderSummary(rules: Rule[], conflicts: Rule[][], duplicates: Rule[], strings: typeof copy.zh): string {
-  const active = rules.filter((rule) => rule.status === "active").length;
-  const drafts = rules.filter((rule) => rule.status === "draft").length;
-  const deprecated = rules.filter((rule) => rule.status === "deprecated").length;
-  return strings.summaryHeader +
-    `| ${strings.activeRules} | ${active} |\n` +
-    `| ${strings.conflicts} | ${conflicts.length} |\n` +
-    `| ${strings.duplicates} | ${duplicates.length} |\n` +
-    `| ${strings.drafts} | ${drafts} |\n` +
-    `| ${strings.deprecated} | ${deprecated} |\n`;
-}
-
-function loadTemplate(rootDir: string, fileName: string): string {
-  const templateFile = join(getTemplatesDir(rootDir), fileName);
-  return readFileSync(templateFile, "utf8");
-}
-
-function renderTemplate(template: string, values: Record<string, string>): string {
-  return Object.entries(values).reduce(
-    (content, [key, value]) => content.replaceAll(`{{${key}}}`, value),
-    template,
-  );
-}
+const PRIORITY_RANK = new Map([
+  ["P0", 0],
+  ["P1", 1],
+  ["P2", 2],
+  ["P3", 3],
+]);
 
 const AGENTS_MANAGED_START = "<!-- codemem:managed:start -->";
 const AGENTS_MANAGED_END = "<!-- codemem:managed:end -->";
+
 const REQUIRED_SCAN_DIMENSIONS = [
   "overall directory structure",
   "architecture design principles",
@@ -266,11 +55,340 @@ const REQUIRED_SCAN_DIMENSIONS = [
   "module extension rules for adding new business modules",
 ];
 
-function renderRequiredScanDimensions(): string[] {
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function ensureDir(path) {
+  mkdirSync(path, { recursive: true });
+}
+
+function parseArgs(argv) {
+  const values = new Map();
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (!token.startsWith("--")) continue;
+    const key = token.slice(2);
+    const next = argv[index + 1];
+    if (!next || next.startsWith("--")) {
+      values.set(key, "true");
+      continue;
+    }
+    values.set(key, next);
+    index += 1;
+  }
+  return values;
+}
+
+function required(args, key) {
+  const value = args.get(key);
+  if (!value) {
+    throw new Error(`--${key} is required`);
+  }
+  return value;
+}
+
+function getRootDir(args) {
+  return resolve(args.get("root") || process.cwd());
+}
+
+function getGlobalCodememDir() {
+  if (process.env.CODEMEM_GLOBAL_DIR) return resolve(process.env.CODEMEM_GLOBAL_DIR);
+  if (process.env.CODEMEM_HOME) return resolve(dirname(process.env.CODEMEM_HOME));
+  return join(process.env.HOME || "", ".codemem");
+}
+
+function getStateDir(rootDir) {
+  return join(rootDir, ".codemem");
+}
+
+function getDocsDir(rootDir) {
+  return join(getStateDir(rootDir), "docs");
+}
+
+function getGlobalDocsDir(rootDir) {
+  return join(getDocsDir(rootDir), "global");
+}
+
+function getProjectDocsDir(rootDir) {
+  return join(getDocsDir(rootDir), "projects");
+}
+
+function getReportsDir(rootDir) {
+  return join(getDocsDir(rootDir), "reports");
+}
+
+function getSystemDir(rootDir) {
+  return join(getStateDir(rootDir), "_system");
+}
+
+function getLogsDir(rootDir) {
+  return join(getSystemDir(rootDir), "logs", "standards");
+}
+
+function getMetaDir(rootDir) {
+  return join(getSystemDir(rootDir), "meta", "standards");
+}
+
+function getRegistryDir(rootDir) {
+  return join(getSystemDir(rootDir), "registry");
+}
+
+function getGlobalProjectsRegistryFile() {
+  return join(getGlobalCodememDir(), "_system", "registry", "projects-registry.json");
+}
+
+function getProjectMarkerFile(rootDir) {
+  return join(rootDir, ".codemem-project.json");
+}
+
+function getGlobalStandardFile(rootDir) {
+  return join(getGlobalDocsDir(rootDir), "global-standard.md");
+}
+
+function getDefaultProjectStandardRelativePath(project) {
+  return `.codemem/docs/projects/project-standard.${project}.md`;
+}
+
+function normalizeProjectDocPath(value) {
+  if (value === undefined || String(value).trim() === "") return undefined;
+  const input = String(value).trim().replaceAll("\\", "/");
+  const hasWindowsDrive = /^[A-Za-z]:\//.test(input);
+  if (isAbsolute(input) || hasWindowsDrive || input.endsWith("/")) {
+    throw new Error("projectDocPath must be a safe relative file path inside the project");
+  }
+  const normalized = normalize(input).replaceAll("\\", "/");
+  if (normalized === "." || normalized === ".." || normalized.startsWith("../") || normalized.includes("\0")) {
+    throw new Error("projectDocPath must be a safe relative file path inside the project");
+  }
+  return normalized;
+}
+
+function getProjectStandardRelativePath(rootDir, project, projectDocPath) {
+  const explicit = normalizeProjectDocPath(projectDocPath);
+  if (explicit) return explicit;
+  const marker = loadJson(getProjectMarkerFile(rootDir), null);
+  const fromMarker = marker && typeof marker.projectDocPath === "string"
+    ? normalizeProjectDocPath(marker.projectDocPath)
+    : undefined;
+  return fromMarker || getDefaultProjectStandardRelativePath(project);
+}
+
+function getProjectStandardFile(rootDir, project, projectDocPath) {
+  return join(rootDir, getProjectStandardRelativePath(rootDir, project, projectDocPath));
+}
+
+function getStandardsConflictsFile(rootDir) {
+  return join(getReportsDir(rootDir), "standards-conflicts.md");
+}
+
+function getTemplatesDir() {
+  if (process.env.CODEMEM_TEMPLATES_DIR) return process.env.CODEMEM_TEMPLATES_DIR;
+  return resolve(scriptDir, "..", "templates");
+}
+
+function loadJson(file, fallback) {
+  if (!existsSync(file)) return fallback;
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
+function saveJson(file, value) {
+  ensureDir(dirname(file));
+  writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function upsertProject(rootDir, record) {
+  const registryFile = getGlobalProjectsRegistryFile();
+  const registry = loadJson(registryFile, {
+    schema: 1,
+    updatedAt: nowIso(),
+    projects: [],
+  });
+  const normalized = {
+    ...record,
+    lastUpdatedAt: nowIso(),
+    status: record.status || "configured",
+  };
+  const index = registry.projects.findIndex((item) => {
+    if (item.project !== normalized.project) return false;
+    if (item.projectPath && normalized.projectPath) return item.projectPath === normalized.projectPath;
+    return true;
+  });
+  if (index === -1) {
+    registry.projects.push(normalized);
+  } else {
+    registry.projects[index] = { ...registry.projects[index], ...normalized };
+  }
+  registry.updatedAt = nowIso();
+  saveJson(registryFile, registry);
+  saveJson(getProjectMarkerFile(rootDir), {
+    schema: 1,
+    tool: "codemem",
+    enabled: true,
+    project: normalized.project,
+    owner: normalized.owner,
+    mode: normalized.mode,
+    sourceProject: normalized.sourceProject,
+    packageId: normalized.packageId,
+    packageVersion: normalized.packageVersion,
+    configuredAt: normalized.configuredAt,
+    lastUpdatedAt: normalized.lastUpdatedAt,
+    status: normalized.status,
+    standardsPolicyVersion: 1,
+    ...(normalized.projectDocPath ? { projectDocPath: normalized.projectDocPath } : {}),
+  });
+}
+
+function normalizeText(value) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function parseJsonl(file) {
+  if (!existsSync(file)) return [];
+  return readFileSync(file, "utf8")
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .flatMap((line) => {
+      try {
+        const item = JSON.parse(line);
+        return [{
+          schema: Number(item.schema || 1),
+          ts: item.ts || "",
+          project: item.project || basename(file, ".jsonl"),
+          type: item.type || "general",
+          title: item.title || "Untitled",
+          rule: item.rule || "",
+          priority: item.priority || "P2",
+          status: item.status || "active",
+          scope: item.scope || "project",
+          source: item.source || "manual",
+          lang: item.lang || "zh",
+        }];
+      } catch {
+        return [];
+      }
+    })
+    .filter((item) => item.rule.trim());
+}
+
+function readAllRules(rootDir) {
+  const logsDir = getLogsDir(rootDir);
+  ensureDir(logsDir);
+  return readdirSync(logsDir)
+    .filter((file) => file.endsWith(".jsonl"))
+    .flatMap((file) => parseJsonl(join(logsDir, file)));
+}
+
+function dedupeRules(rules) {
+  const exact = new Map();
+  const duplicates = [];
+  for (const rule of rules) {
+    const key = [
+      rule.project,
+      rule.scope,
+      rule.type,
+      normalizeText(rule.title),
+      normalizeText(rule.rule),
+      rule.status,
+    ].join("|");
+    const existing = exact.get(key);
+    if (!existing || rule.ts > existing.ts) {
+      if (existing) duplicates.push(existing);
+      exact.set(key, rule);
+    } else {
+      duplicates.push(rule);
+    }
+  }
+  return { rules: [...exact.values()], duplicates };
+}
+
+function sortRules(rules) {
+  return [...rules].sort((left, right) => {
+    const diff = (PRIORITY_RANK.get(left.priority) ?? 99) - (PRIORITY_RANK.get(right.priority) ?? 99);
+    if (diff !== 0) return diff;
+    return [left.type, left.title, left.project].join("|").localeCompare([right.type, right.title, right.project].join("|"));
+  });
+}
+
+function findConflicts(rules) {
+  const groups = new Map();
+  for (const rule of rules.filter((item) => item.status === "active")) {
+    const key = [
+      rule.scope,
+      rule.scope === "project" ? rule.project : "global",
+      rule.type,
+      normalizeText(rule.title),
+    ].join("|");
+    const group = groups.get(key) || [];
+    group.push(rule);
+    groups.set(key, group);
+  }
+  return [...groups.values()]
+    .map((items) => {
+      const unique = new Map(items.map((item) => [normalizeText(item.rule), item]));
+      return unique.size > 1 ? [...unique.values()] : null;
+    })
+    .filter(Boolean);
+}
+
+function renderRules(rules, noRules, globalMode = false) {
+  const active = sortRules(rules.filter((rule) => rule.status === "active"));
+  if (active.length === 0) return noRules;
+  return `${active.map((rule) => {
+    const prefix = globalMode
+      ? `[${rule.project}][${rule.scope}][${rule.type}][${rule.priority}]`
+      : `[${rule.scope}][${rule.type}][${rule.priority}]`;
+    return `- ${prefix} **${rule.title}**: ${rule.rule}`;
+  }).join("\n")}\n`;
+}
+
+function renderRulesByType(rules, type, noRules, globalMode = false) {
+  return renderRules(rules.filter((rule) => rule.type === type), noRules, globalMode);
+}
+
+function renderStatusRules(rules, status, noRules) {
+  const filtered = sortRules(rules.filter((rule) => rule.status === status));
+  if (filtered.length === 0) return noRules;
+  return `${filtered.map((rule) => `- [${rule.type}][${rule.priority}] **${rule.title}**: ${rule.rule}`).join("\n")}\n`;
+}
+
+function renderConflicts(conflicts, noConflicts, header) {
+  if (conflicts.length === 0) return noConflicts;
+  return `${header}${conflicts.map((items) => {
+    const first = items[0];
+    const rules = items.map((item) => `${item.project}: ${item.rule}`).join("<br>");
+    return `| ${first.scope} | ${first.type} | ${first.title} | ${rules} |`;
+  }).join("\n")}\n`;
+}
+
+function renderSummary(rules, conflicts, duplicates, strings) {
+  const active = rules.filter((rule) => rule.status === "active").length;
+  const drafts = rules.filter((rule) => rule.status === "draft").length;
+  const deprecated = rules.filter((rule) => rule.status === "deprecated").length;
+  return strings.summaryHeader +
+    `| ${strings.activeRules} | ${active} |\n` +
+    `| ${strings.conflicts} | ${conflicts.length} |\n` +
+    `| ${strings.duplicates} | ${duplicates.length} |\n` +
+    `| ${strings.drafts} | ${drafts} |\n` +
+    `| ${strings.deprecated} | ${deprecated} |\n`;
+}
+
+function renderTemplate(template, values) {
+  return Object.entries(values).reduce(
+    (content, [key, value]) => content.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+}
+
+function renderRequiredScanDimensions() {
   return REQUIRED_SCAN_DIMENSIONS.map((item) => `  - ${item}`);
 }
 
-function renderAutoCaptureSignals(): string[] {
+function renderAutoCaptureSignals() {
   return [
     "  - architecture or design pattern refactors",
     "  - replacing if/else or switch dispatch with strategies, factories, handlers, registries, or template methods",
@@ -286,7 +404,7 @@ function renderAutoCaptureSignals(): string[] {
   ];
 }
 
-function renderAgentsSection(project: string, projectDocPath: string): string {
+function renderAgentsSection(project, projectDocPath) {
   return [
     AGENTS_MANAGED_START,
     "## Codemem Standards",
@@ -319,10 +437,9 @@ function renderAgentsSection(project: string, projectDocPath: string): string {
   ].join("\n");
 }
 
-function syncAgentsGuide(rootDir: string, project: string, projectDocPath: string): string {
+function syncAgentsGuide(rootDir, project, projectDocPath) {
   const agentsFile = join(rootDir, "AGENTS.md");
   const managedSection = renderAgentsSection(project, projectDocPath);
-
   if (!existsSync(agentsFile)) {
     writeFileSync(agentsFile, [
       "# AGENTS.md",
@@ -349,7 +466,7 @@ function syncAgentsGuide(rootDir: string, project: string, projectDocPath: strin
   return agentsFile;
 }
 
-function syncCursorRule(rootDir: string, project: string, projectDocPath: string): string {
+function syncCursorRule(rootDir, project, projectDocPath) {
   const ruleFile = join(rootDir, ".cursor", "rules", "codemem-standards.mdc");
   ensureDir(dirname(ruleFile));
   writeFileSync(ruleFile, [
@@ -384,10 +501,9 @@ function syncCursorRule(rootDir: string, project: string, projectDocPath: string
   return ruleFile;
 }
 
-function syncGitignore(rootDir: string): string {
+function syncGitignore(rootDir) {
   const gitignoreFile = join(rootDir, ".gitignore");
   const entry = ".codemem/";
-
   if (!existsSync(gitignoreFile)) {
     writeFileSync(gitignoreFile, `${entry}\n`);
     return gitignoreFile;
@@ -398,47 +514,40 @@ function syncGitignore(rootDir: string): string {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .some((line) => line === entry || line === ".codemem");
-
   if (!hasEntry) {
     const separator = existing.endsWith("\n") || existing.length === 0 ? "" : "\n";
     writeFileSync(gitignoreFile, `${existing}${separator}${entry}\n`);
   }
-
   return gitignoreFile;
 }
 
-export function initProject(options: InitOptions): InitResult {
-  migrateLegacyStateLayout(options.rootDir);
-  const projectDocPath = getProjectStandardRelativePath(
-    options.rootDir,
-    options.project,
-    normalizeProjectDocPath(options.projectDocPath),
-  );
-  const metaDir = getMetaDir(options.rootDir);
-  const logsDir = getLogsDir(options.rootDir);
+function initProject(args) {
+  const rootDir = getRootDir(args);
+  const project = required(args, "project");
+  const owner = args.get("owner") || "unknown";
+  const projectPath = resolve(args.get("project-path") || rootDir);
+  const projectDocPath = getProjectStandardRelativePath(rootDir, project, args.get("project-doc-path"));
+  const metaDir = getMetaDir(rootDir);
+  const logsDir = getLogsDir(rootDir);
   ensureDir(metaDir);
   ensureDir(logsDir);
 
   const createdAt = nowIso();
-  const metaFile = join(metaDir, `${options.project}.env`);
-  const logFile = join(logsDir, `${options.project}.jsonl`);
-
+  const metaFile = join(metaDir, `${project}.env`);
+  const logFile = join(logsDir, `${project}.jsonl`);
   writeFileSync(metaFile, [
-    `PROJECT=${options.project}`,
-    `OWNER=${options.owner}`,
-    `PROJECT_PATH=${options.projectPath}`,
+    `PROJECT=${project}`,
+    `OWNER=${owner}`,
+    `PROJECT_PATH=${projectPath}`,
     `INITIALIZED_AT=${createdAt}`,
   ].join("\n") + "\n");
+  if (!existsSync(logFile)) writeFileSync(logFile, "");
 
-  if (!existsSync(logFile)) {
-    writeFileSync(logFile, "");
-  }
-
-  upsertProject(options.rootDir, {
-    project: options.project,
-    owner: options.owner,
+  upsertProject(rootDir, {
+    project,
+    owner,
     mode: "local",
-    projectPath: options.projectPath,
+    projectPath,
     packageId: "",
     packageVersion: "",
     packageFile: "",
@@ -447,64 +556,77 @@ export function initProject(options: InitOptions): InitResult {
     projectDocPath,
   });
 
-  const agentsFile = syncAgentsGuide(options.rootDir, options.project, projectDocPath);
-  const cursorRuleFile = syncCursorRule(options.rootDir, options.project, projectDocPath);
-  const gitignoreFile = syncGitignore(options.rootDir);
-  const projectMarkerFile = getProjectMarkerFile(options.rootDir);
+  const agentsFile = syncAgentsGuide(rootDir, project, projectDocPath);
+  const cursorRuleFile = syncCursorRule(rootDir, project, projectDocPath);
+  const gitignoreFile = syncGitignore(rootDir);
+  const projectMarkerFile = getProjectMarkerFile(rootDir);
   const globalRegistryFile = getGlobalProjectsRegistryFile();
 
-  return { metaFile, logFile, agentsFile, cursorRuleFile, gitignoreFile, projectMarkerFile, globalRegistryFile };
+  console.log(`Initialized project '${project}'`);
+  console.log(`Meta: ${metaFile}`);
+  console.log(`Log:  ${logFile}`);
+  console.log(`Agents guide: ${agentsFile}`);
+  console.log(`Cursor rule: ${cursorRuleFile}`);
+  console.log(`Git ignore: ${gitignoreFile}`);
+  console.log(`Project marker: ${projectMarkerFile}`);
+  console.log(`Global registry: ${globalRegistryFile}`);
 }
 
-export function captureRule(options: CaptureOptions): string {
-  migrateLegacyStateLayout(options.rootDir);
-  const logsDir = getLogsDir(options.rootDir);
+function captureRule(args) {
+  const rootDir = getRootDir(args);
+  const project = required(args, "project");
+  const title = required(args, "title");
+  const logsDir = getLogsDir(rootDir);
   ensureDir(logsDir);
-  const logFile = join(logsDir, `${options.project}.jsonl`);
+  const logFile = join(logsDir, `${project}.jsonl`);
   const line = JSON.stringify({
     schema: 2,
     ts: nowIso(),
-    project: options.project,
-    type: options.type,
-    title: options.title,
-    rule: options.rule,
-    priority: options.priority,
-    status: options.status,
-    scope: options.scope,
-    source: options.source,
-    lang: options.lang,
+    project,
+    type: required(args, "type"),
+    title,
+    rule: required(args, "rule"),
+    priority: args.get("priority") || "P2",
+    status: args.get("status") || "active",
+    scope: args.get("scope") || "project",
+    source: args.get("source") || "manual",
+    lang: args.get("lang") || "zh",
   });
   writeFileSync(logFile, `${existsSync(logFile) ? readFileSync(logFile, "utf8") : ""}${line}\n`);
-  return logFile;
+  console.log(`Captured standard for '${project}': ${title}`);
 }
 
-export function buildStandards(options: BuildOptions): string[] {
-  migrateLegacyStateLayout(options.rootDir);
-  const strings = copy.zh;
-  ensureDir(getGlobalDocsDir(options.rootDir));
-  ensureDir(getReportsDir(options.rootDir));
+function buildStandards(args) {
+  const rootDir = getRootDir(args);
+  const project = required(args, "project");
+  const lang = args.get("lang") || "zh";
+  const includeDrafts = args.get("include-drafts") === "true";
+  const strings = COPY.zh;
+  ensureDir(getGlobalDocsDir(rootDir));
+  ensureDir(getProjectDocsDir(rootDir));
+  ensureDir(getReportsDir(rootDir));
 
-  const projectLog = join(getLogsDir(options.rootDir), `${options.project}.jsonl`);
+  const projectLog = join(getLogsDir(rootDir), `${project}.jsonl`);
   if (!existsSync(projectLog)) {
     throw new Error(`Project log not found: ${projectLog}`);
   }
 
-  const allRulesRaw = readAllRules(options.rootDir);
+  const allRulesRaw = readAllRules(rootDir);
   const { rules: allRules, duplicates } = dedupeRules(allRulesRaw);
-  const visibleRules = options.includeDrafts ? allRules : allRules.filter((rule) => rule.status !== "draft");
-  const projectRules = visibleRules.filter((rule) => rule.project === options.project);
-  const projectAllRules = allRules.filter((rule) => rule.project === options.project);
+  const visibleRules = includeDrafts ? allRules : allRules.filter((rule) => rule.status !== "draft");
+  const projectRules = visibleRules.filter((rule) => rule.project === project);
+  const projectAllRules = allRules.filter((rule) => rule.project === project);
   const conflicts = findConflicts(visibleRules);
-  const projectConflicts = conflicts.filter((items) => items.some((item) => item.project === options.project));
+  const projectConflicts = conflicts.filter((items) => items.some((item) => item.project === project));
   const duplicateSummary = strings.duplicateSummary
     .replace("{{kept}}", String(allRules.length))
     .replace("{{hidden}}", String(duplicates.length));
 
   const common = {
     GENERATED_AT: nowIso(),
-    PROJECT_NAME: options.project,
+    PROJECT_NAME: project,
     SUMMARY: renderSummary(allRules, conflicts, duplicates, strings),
-    PROJECT_SUMMARY: renderSummary(projectAllRules, projectConflicts, duplicates.filter((rule) => rule.project === options.project), strings),
+    PROJECT_SUMMARY: renderSummary(projectAllRules, projectConflicts, duplicates.filter((rule) => rule.project === project), strings),
     DUPLICATE_SUMMARY: duplicateSummary,
     CONFLICTS: renderConflicts(conflicts, strings.noConflicts, strings.conflictHeader),
     PROJECT_CONFLICTS: renderConflicts(projectConflicts, strings.noConflicts, strings.conflictHeader),
@@ -534,12 +656,12 @@ export function buildStandards(options: BuildOptions): string[] {
     PROJECT_RULES: renderRules(projectRules, strings.noRules, false),
   };
 
-  const projectTemplate = loadTemplate(options.rootDir, "project-standard.zh.template.md");
-  const globalTemplate = loadTemplate(options.rootDir, "global-standard.zh.template.md");
-
-  const projectOutput = getProjectStandardFile(options.rootDir, options.project);
-  const globalOutput = getGlobalStandardFile(options.rootDir);
-  const conflictsOutput = getStandardsConflictsFile(options.rootDir);
+  const templatesDir = getTemplatesDir();
+  const projectTemplate = readFileSync(join(templatesDir, "project-standard.zh.template.md"), "utf8");
+  const globalTemplate = readFileSync(join(templatesDir, "global-standard.zh.template.md"), "utf8");
+  const projectOutput = getProjectStandardFile(rootDir, project);
+  const globalOutput = getGlobalStandardFile(rootDir);
+  const conflictsOutput = getStandardsConflictsFile(rootDir);
 
   ensureDir(dirname(projectOutput));
   writeFileSync(projectOutput, renderTemplate(projectTemplate, common));
@@ -551,7 +673,7 @@ export function buildStandards(options: BuildOptions): string[] {
     "",
     "## 冲突检测",
     "",
-    renderConflicts(conflicts, strings.noConflicts, strings.conflictHeader).trim(),
+    renderConflicts(projectConflicts, strings.noConflicts, strings.conflictHeader),
     "",
     strings.dedupeTitle,
     "",
@@ -559,5 +681,42 @@ export function buildStandards(options: BuildOptions): string[] {
     "",
   ].join("\n"));
 
-  return [globalOutput, projectOutput, conflictsOutput];
+  for (const file of [globalOutput, projectOutput, conflictsOutput]) {
+    console.log(`Generated: ${file}`);
+  }
+}
+
+function usage() {
+  return [
+    "codemem skill runtime",
+    "",
+    "Usage:",
+    "  node codemem.mjs init --root <project_root> --project <name> --owner <owner> --project-path <project_root> [--project-doc-path <relative_md_path>]",
+    "  node codemem.mjs capture --root <project_root> --project <name> --type <type> --title <title> --rule <rule>",
+    "  node codemem.mjs build --root <project_root> --project <name> --lang zh",
+  ].join("\n");
+}
+
+try {
+  const [command, ...rest] = process.argv.slice(2);
+  if (!command || command === "--help" || command === "-h") {
+    console.log(usage());
+    process.exit(0);
+  }
+
+  const args = parseArgs(rest);
+  if (command === "init") {
+    initProject(args);
+  } else if (command === "capture") {
+    captureRule(args);
+  } else if (command === "build") {
+    buildStandards(args);
+  } else {
+    throw new Error(`Unknown command: ${command}`);
+  }
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  console.error("");
+  console.error(usage());
+  process.exit(1);
 }

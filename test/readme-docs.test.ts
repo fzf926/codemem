@@ -6,8 +6,8 @@ describe("generated readme docs", () => {
   test("render command examples and commands reference link", () => {
     const root = process.cwd();
     const readme = readFileSync(join(root, "README.md"), "utf8");
-    expect(readme).toContain("codemem agent install");
-    expect(readme).toContain("codemem upgrade");
+    expect(readme).toContain("bun run core/src/cli/agent.ts --root . install");
+    expect(readme).toContain("bun run core/src/cli/upgrade.ts --root .");
     expect(readme).toContain("scripts/install.sh");
     expect(readme).toContain("docs/COMMANDS.md");
     expect(readme).toContain("docs/INSTALL.md");

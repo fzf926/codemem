@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { AgentId } from "../agent/service";
-import { activateCodememSource, getInstallPaths, syncManagedInstall } from "../install/service";
 import { buildPackage } from "../packaging/service";
 import { installPackage } from "../installer/service";
 import { uninstallCodemem } from "../uninstall/service";
@@ -55,8 +54,9 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
     const project = args.get("project")!;
     const owner = args.get("owner")!;
     const projectPath = resolveDirectoryArg(args.get("project-path"));
+    const projectDocPath = args.get("project-doc-path");
 
-    const result = initProject({ rootDir, project, owner, projectPath });
+    const result = initProject({ rootDir, project, owner, projectPath, projectDocPath });
     console.log(`Initialized project '${project}'`);
     console.log(`Meta: ${result.metaFile}`);
     console.log(`Log:  ${result.logFile}`);
@@ -145,19 +145,13 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
     const lang = args.get("lang")!;
     const pull = args.get("pull") === "true";
     const skillDir = args.get("skill-dir") ? resolve(args.get("skill-dir")!) : undefined;
-    const installPaths = getInstallPaths();
     const sourceDir = resolve(rootDir);
-    const managedRoot = sourceDir === installPaths.managedInstallDir ? sourceDir : installPaths.managedInstallDir;
 
     if (pull) {
       run("git", ["pull", "--ff-only"], { cwd: sourceDir });
     }
 
-    if (managedRoot !== sourceDir) {
-      syncManagedInstall(sourceDir, managedRoot);
-    }
-
-    run("bash", ["scripts/build.sh"], { cwd: managedRoot });
+    run("bash", ["scripts/build.sh"], { cwd: sourceDir });
 
     const result = Bun.spawnSync({
       cmd: [
@@ -165,7 +159,7 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
         "run",
         "core/src/cli/agent.ts",
         "--root",
-        managedRoot,
+        sourceDir,
         "install",
         "--agent",
         agent,
@@ -175,7 +169,7 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
         lang,
         ...(skillDir ? ["--skill-dir", skillDir] : []),
       ],
-      cwd: managedRoot,
+      cwd: sourceDir,
       stdout: "pipe",
       stderr: "inherit",
       env: process.env,
@@ -185,17 +179,9 @@ const commandHandlers: Record<CommandSpec["id"], CommandHandler> = {
       throw new Error("codemem upgrade failed while reinstalling agent resources.");
     }
 
-    const activation = activateCodememSource(managedRoot, {
-      installDir: installPaths.managedInstallDir,
-      binDir: installPaths.binDir,
-      profileFile: installPaths.profileFile,
-    });
-
-    console.log("Updated codemem global resources");
+    console.log("Updated codemem project resources");
     console.log(`Agent: ${agent}`);
-    console.log(`Source: ${managedRoot}`);
-    console.log(`Global command: ${activation.shimFile}`);
-    console.log(`Install metadata: ${activation.metadataFile}`);
+    console.log(`Source: ${sourceDir}`);
     if (pull) {
       console.log("Git: pulled latest changes with --ff-only");
     }

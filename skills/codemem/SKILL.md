@@ -28,8 +28,8 @@ Use this skill to turn development conventions into reusable project assets:
 - `codemem package` - build a shareable package directory and .tgz
 - `codemem install` - install a shared package into another project
 - `codemem agent` - install or export agent-specific codemem integrations
-- `codemem upgrade` - refresh the managed codemem install, global command, and shared agent resources
-- `codemem uninstall` - uninstall codemem global resources
+- `codemem upgrade` - rebuild this checkout and refresh shared agent resources
+- `codemem uninstall` - clean codemem agent resources and optional project data
 - `codemem projects` - list configured projects
 
 ## Workflow
@@ -95,7 +95,7 @@ codemem build --project <project_name> --lang zh
 Outputs:
 
 - `.codemem/docs/global/global-standard.md`
-- `.codemem/docs/projects/project-standard.<project_name>.md`
+- `.codemem/docs/projects/project-standard.<project_name>.md or configured --project-doc-path`
 - `.codemem/docs/reports/standards-conflicts.md`
 
 ### Step 4: Package the shared standard
@@ -153,6 +153,7 @@ codemem projects
 | `--project` | Required | - | - | project name to register and initialize |
 | `--owner` | Optional | `unknown` | - | project owner recorded in the registry |
 | `--project-path` | Optional | `current working directory` | - | absolute or relative path of the project being registered |
+| `--project-doc-path` | Optional | - | - | relative path and filename for the generated project standard document |
 
 ### `codemem capture`
 
@@ -166,14 +167,14 @@ codemem projects
 | `--status` | Optional | `active` | `active`, `draft`, `deprecated` | lifecycle state of the rule |
 | `--scope` | Optional | `project` | `project`, `global` | whether the rule is project-only or promoted globally |
 | `--source` | Optional | `manual` | - | where the rule came from, for traceability |
-| `--lang` | Optional | `zh` | `zh`, `en` | language used in generated labels and copy |
+| `--lang` | Optional | `zh` | `zh` | generated copy language; only zh is supported |
 
 ### `codemem build`
 
 | Argument | Required | Default | Allowed values | Description |
 | --- | --- | --- | --- | --- |
 | `--project` | Required | - | - | project name to build documents for |
-| `--lang` | Optional | `zh` | `zh`, `en` | language used for generated document copy |
+| `--lang` | Optional | `zh` | `zh` | generated document language; only zh is supported |
 | `--include-drafts` | Optional | `false` | `true`, `false` | include draft rules in the generated output |
 
 ### `codemem package`
@@ -182,7 +183,7 @@ codemem projects
 | --- | --- | --- | --- | --- |
 | `--project` | Required | - | - | project name whose standards should be packaged |
 | `--version` | Optional | `0.1.0` | - | package version written into the manifest and archive name |
-| `--lang` | Optional | `zh` | `zh`, `en` | language used for package-side generated documents |
+| `--lang` | Optional | `zh` | `zh` | package-side generated document language; only zh is supported |
 | `--package-id` | Optional | `shared-standard-<project>` | - | custom package id override for the generated artifact |
 
 ### `codemem install`
@@ -206,7 +207,7 @@ codemem projects
 | `--skill-dir` | Optional | - | - | override the integration install directory for the selected agent; otherwise auto-detect common existing locations first and confirm non-default choices in interactive terminals |
 | `--version` | Optional | `0.1.0` | - | exported package version |
 | `--package-name` | Optional | `codemem-agent-kit` | - | exported package base name |
-| `--lang` | Optional | `zh` | `zh`, `en` | language used in generated prompts and guidance |
+| `--lang` | Optional | `zh` | `zh` | generated prompt and guidance language; only zh is supported |
 | `--json` | Optional | `false` | `true`, `false` | print machine-readable output for install, detect, or export |
 
 ### `codemem upgrade`
@@ -216,7 +217,7 @@ codemem projects
 | `--agent` | Optional | - | `codex`, `cursor`, `claude-code` | target code agent whose shared integration should be refreshed; auto-detected from installed integrations when omitted |
 | `--target-dir` | Optional | `current working directory` | - | project directory used as the working project context during reinstall |
 | `--skill-dir` | Optional | - | - | override the integration install directory for the selected agent |
-| `--lang` | Optional | `zh` | `zh`, `en` | language used in regenerated prompts and guidance |
+| `--lang` | Optional | `zh` | `zh` | regenerated prompt and guidance language; only zh is supported |
 | `--pull` | Optional | `false` | `true`, `false` | run git pull --ff-only before rebuilding and reinstalling |
 
 ### `codemem uninstall`
@@ -225,8 +226,8 @@ codemem projects
 | --- | --- | --- | --- | --- |
 | `--target-dir` | Optional | `current working directory` | - | project directory whose generated codemem data may be deleted when --delete-project-data true is set |
 | `--delete-project-data` | Optional | `false` | `true`, `false` | also delete generated project standards and codemem project-side references under <target-dir> |
-| `--install-dir` | Optional | `~/.codemem/source` | - | codemem source install directory to remove |
-| `--bin-dir` | Optional | `~/.local/bin` | - | directory containing the global codemem command shim |
+| `--install-dir` | Optional | `~/.codemem/source` | - | legacy codemem source install directory to remove |
+| `--bin-dir` | Optional | `~/.local/bin` | - | legacy directory containing the global codemem command shim |
 | `--profile` | Optional | `~/.zshrc or ~/.bashrc` | - | shell profile file whose codemem PATH block should be removed |
 | `--dry-run` | Optional | `false` | `true`, `false` | print what would be removed without deleting anything |
 

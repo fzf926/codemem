@@ -6,7 +6,6 @@
 
 - `core/src/`：运行时实现
 - `core/dist/`：编译后的 CLI 二进制
-- `bin/`：轻量命令入口
 - `skills/codemem/`：skill 提示词与模板
 - `.codemem/`：生成的状态、日志、注册表与安装包产物
 
@@ -18,7 +17,7 @@ flowchart TD
   A --> C["core/dist/*<br/>编译后的 CLI"]
   C --> D["~/.codex/skills/codemem/runtime/bin"]
   B --> E["~/.codex/skills/codemem/templates"]
-  D --> F["任意项目中的 codemem-init / capture / build 调用"]
+  D --> F["agent 集成或项目内 CLI 调用"]
   E --> F
   G["目标项目"] --> H[".codemem/<br/>状态、文档、日志、注册表"]
   F --> H
@@ -27,7 +26,7 @@ flowchart TD
 说明：
 
 - `skills/codemem/templates/` 是仓库里的源码模板目录，只给构建、打包、安装器使用。
-- `~/.codex/skills/codemem/runtime/bin/` 和 `~/.codex/skills/codemem/templates/` 是安装后的全局共享资源。
+- `~/.codex/skills/codemem/scripts/`、`~/.codex/skills/codemem/runtime/bin/` 和 `~/.codex/skills/codemem/templates/` 是 agent skill 使用的共享资源，不提供 shell 全局命令。
 - 目标项目只保留 `.codemem/` 状态与生成文档，不再复制 runtime 和模板副本。
 
 ## 常用命令
@@ -36,13 +35,7 @@ flowchart TD
 
 ## 安装使用
 
-推荐你直接使用一键安装脚本。脚本会自动拉取 `codemem` 项目、构建 CLI、写入全局 `codemem` 命令，把命令目录加入 shell profile，并安装对应 agent 集成。
-
-如果脚本已经发布在 GitHub，你可以在目标项目目录直接执行：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh | CODEMEM_REPO_URL=https://github.com/fzf926/codemem.git bash -s -- --agent cursor --target-dir .
-```
+推荐在这个项目内构建并为目标项目安装 agent 集成，不再安装全局 `codemem` 命令。
 
 如果你已经拿到了源码仓库，也可以执行：
 
@@ -50,49 +43,55 @@ curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install
 bash scripts/install.sh --agent cursor --target-dir <project_dir>
 ```
 
-如果你没有 GitHub SSH 权限，可以换成 HTTPS 源：
+也可以直接运行源码 CLI：
 
 ```bash
-CODEMEM_REPO_URL=https://github.com/fzf926/codemem.git bash scripts/install.sh --agent cursor --target-dir <project_dir>
+bun run core/src/cli/agent.ts --root . install --agent cursor --target-dir <project_dir> --lang zh
 ```
 
-安装完成后，你日常不需要进入源码目录，也不需要使用 `./bin/...`：
+推荐优先使用 `agent install` 给指定 code agent 安装集成。未传 `--skill-dir` 时，安装器会先自动探测常见 agent 安装位置；在交互式终端里如果探测到非默认目录，还会先让你确认；之后再在项目开发过程中让 AI 负责初始化、记录规范和建议更新文档。
+
+如果你已经在本机装好了 `codemem` 集成，后续更新最简单的方式是在这个源码仓库里执行：
 
 ```bash
-codemem agent install --agent cursor --target-dir <project_dir>
-codemem upgrade
-codemem projects
+bun run core/src/cli/upgrade.ts --root . --agent cursor --target-dir <project_dir>
 ```
 
-推荐优先使用 `codemem agent install` 给指定 code agent 安装集成。未传 `--skill-dir` 时，安装器会先自动探测常见 agent 安装位置；在交互式终端里如果探测到非默认目录，还会先让你确认；之后再在项目开发过程中让 AI 负责初始化、记录规范和建议更新文档。
+`upgrade` 会重建当前源码仓库并刷新 agent 共享资源，例如 `~/.codex/skills/codemem/`。
 
-如果你已经在本机装好了 `codemem` 集成，后续更新最简单的方式是直接进入目标项目目录执行 `codemem upgrade`。当未传 `--agent` 和 `--target-dir` 时，它会优先把当前工作目录当成目标项目，并根据已安装集成自动识别当前 agent。
+## 打包给别人使用
 
-`codemem upgrade` 现在会统一刷新这几层资源：
-
-- 受管安装目录 `~/.codemem/source/`
-- 全局命令 `~/.local/bin/codemem`
-- 安装元数据 `~/.codemem/_system/install.json`
-- agent 共享资源，例如 `~/.codex/skills/codemem/`
-
-如果你正在开发 `codemem` 本体，并且刚在本地源码仓库里改了代码，最推荐直接在这份源码仓库里执行：
+如果你想把本机生成的 skill 直接发给别人使用，导出 agent 安装包即可。导出的 `.tgz` 是自包含的，对方不需要拿到 `codemem` 源码仓库：
 
 ```bash
-./bin/codemem upgrade --agent cursor --target-dir <project_dir>
+bun run core/src/cli/agent.ts --root . export --agent all --target-dir .codemem/_system/packages/agents --version 0.1.0 --lang zh
 ```
 
-这样会先把当前源码同步到受管安装目录，再重建全局命令和 agent 集成。之后你日常再使用 `codemem upgrade`，就会继续基于同一份受管安装生效，不会再出现“升级的是另一份旧代码”的情况。
+把生成的这两个文件发给对方：
 
-如果你后续不想继续使用，可以执行卸载命令。默认只卸载全局命令、全局 skill/runtime/templates 和 agent 集成，会保留当前项目已经生成的规范历史：
+- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0.tgz`
+- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0.tgz.sha256`
+
+对方解压后执行：
 
 ```bash
-codemem uninstall
+tar -xzf codemem-agent-kit-0.1.0.tgz
+cd codemem-agent-kit-0.1.0
+node install.mjs --agent cursor --target-dir /path/to/project
+```
+
+`install.mjs` 会按对方机器的真实路径写入 `SKILL.md` 或 `codemem.md`，不会使用打包者本机路径。
+
+如果你后续不想继续使用，可以执行卸载命令。默认清理 agent 集成和旧版全局残留，会保留当前项目已经生成的规范历史：
+
+```bash
+bun run core/src/cli/uninstall.ts --target-dir <project_dir>
 ```
 
 如果你确认也要删除目标项目里已经生成的规范历史和 codemem 项目侧引用，再显式加上参数：
 
 ```bash
-codemem uninstall --delete-project-data true --target-dir <project_dir>
+bun run core/src/cli/uninstall.ts --delete-project-data true --target-dir <project_dir>
 ```
 
 ## 更多命令说明
@@ -117,4 +116,4 @@ codemem uninstall --delete-project-data true --target-dir <project_dir>
 bash scripts/build.sh
 ```
 
-构建完成后，`bin/*` 会优先使用 `core/dist/` 下的编译产物；在开发态找不到编译产物时，会自动回退到 `bun run`。
+构建完成后，编译产物位于 `core/dist/`；开发态可以直接运行 `bun run core/src/cli/<command>.ts` 或使用 skill 内置的 `skills/codemem/scripts/codemem.mjs`。

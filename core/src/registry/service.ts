@@ -23,6 +23,7 @@ export interface ProjectRecord {
   configuredAt: string;
   lastUpdatedAt: string;
   status: string;
+  projectDocPath?: string;
 }
 
 interface ProjectsRegistry {
@@ -45,6 +46,7 @@ export interface ProjectMarker {
   lastUpdatedAt: string;
   status: string;
   standardsPolicyVersion: number;
+  projectDocPath?: string;
 }
 
 interface PackageRecord {
@@ -145,6 +147,7 @@ export function saveProjectMarker(rootDir: string, record: ProjectRecord): void 
     lastUpdatedAt: record.lastUpdatedAt,
     status: record.status,
     standardsPolicyVersion: 1,
+    ...(record.projectDocPath ? { projectDocPath: record.projectDocPath } : {}),
   };
   saveJson(getProjectMarkerFile(rootDir), marker);
 }

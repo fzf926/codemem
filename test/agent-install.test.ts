@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { exportAgentPackage, installAgent } from "../core/src/agent/service";
+import { detectAgentInstallations, exportAgentPackage, installAgent } from "../core/src/agent/service";
 
 describe("agent install and export", () => {
   test("installs a Cursor skill into ~/.codex/skills without copying runtime into the project", async () => {
@@ -29,11 +29,15 @@ describe("agent install and export", () => {
       expect(existsSync(join(result.skillDir, "SKILL.md"))).toBe(true);
       expect(existsSync(join(result.skillDir, "meta.json"))).toBe(true);
       expect(existsSync(join(result.skillDir, "runtime", "bin", "codemem-init"))).toBe(true);
+      expect(existsSync(join(result.skillDir, "scripts", "codemem.mjs"))).toBe(true);
       expect(existsSync(join(result.skillDir, "templates", "project-standard.zh.template.md"))).toBe(true);
       const content = readFileSync(join(result.skillDir, "SKILL.md"), "utf8");
       expect(content).toContain("默认一轮完成规范更新");
       expect(content).toContain("name: codemem");
-      expect(content).toContain("全局共享 runtime 和模板");
+      expect(content).toContain("JavaScript runtime 和模板");
+      expect(content).toContain("converting MQ or event consumer branching into topic factories");
+      expect(content).toContain("不要求用户显式提到 codemem");
+      expect(content).toContain("不要把架构或重构产生的规范记录当成代码改完后的可选后续事项");
       expect(content).toContain(".codemem/docs/global/global-standard.md");
       expect(content).toContain(".codemem/docs/projects/project-standard.<project_name>.md");
       expect(content).toContain("优先读取已有规范文档");
@@ -50,6 +54,8 @@ describe("agent install and export", () => {
       expect(content).toContain("MapStruct 使用规范");
       expect(content).toContain("分页查询规范");
       expect(content).toContain("模块扩展规范");
+      expect(content).toContain("node");
+      expect(content).toContain("scripts/codemem.mjs");
     } finally {
       process.env.HOME = previousHome;
     }
@@ -72,16 +78,58 @@ describe("agent install and export", () => {
     expect(existsSync(join(skillDir, "SKILL.md"))).toBe(true);
     expect(existsSync(join(skillDir, "agents", "openai.yaml"))).toBe(true);
     expect(existsSync(join(skillDir, "runtime", "bin", "codemem-init"))).toBe(true);
+    expect(existsSync(join(skillDir, "scripts", "codemem.mjs"))).toBe(true);
     expect(existsSync(join(skillDir, "templates", "project-standard.zh.template.md"))).toBe(true);
     expect(existsSync(join(targetDir, ".codemem", "_system", "runtime", "agent-runtime", "bin", "codemem-init"))).toBe(false);
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("name: codemem");
-    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("runtime/bin/codemem-init");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).not.toContain("当用户希望 Cursor");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("架构重构、MQ 消费改造、策略工厂");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("converting MQ or event consumer branching into topic factories");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要求用户显式提到 codemem");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要把架构或重构产生的规范记录当成代码改完后的可选后续事项");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("scripts/codemem.mjs");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain(".codemem/docs/global/global-standard.md");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("默认连续完成初始化、规范记录、项目扫描和文档生成");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要把明显低风险的后续工作包装成");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("固定清单中的每个适用维度");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("缓存使用规范");
     expect(readFileSync(join(skillDir, "agents", "openai.yaml"), "utf8")).toContain("display_name: \"Codemem Standards\"");
+  });
+
+  test("reinstall removes stale English templates from the shared skill", async () => {
+    const root = process.cwd();
+    const targetDir = mkdtempSync(join(tmpdir(), "codemem-agent-stale-target-"));
+    const skillDir = mkdtempSync(join(tmpdir(), "codemem-agent-stale-skill-"));
+    mkdirSync(join(skillDir, "templates"), { recursive: true });
+    writeFileSync(join(skillDir, "templates", "project-standard.en.template.md"), "old english template");
+
+    await installAgent({
+      rootDir: root,
+      agent: "codex",
+      targetDir,
+      skillDir,
+      lang: "zh",
+    });
+
+    expect(existsSync(join(skillDir, "templates", "project-standard.en.template.md"))).toBe(false);
+    expect(existsSync(join(skillDir, "templates", "project-standard.zh.template.md"))).toBe(true);
+  });
+
+  test("detect treats a skill missing the JavaScript runtime script as not fully configured", () => {
+    const targetDir = mkdtempSync(join(tmpdir(), "codemem-agent-detect-stale-target-"));
+    const skillDir = mkdtempSync(join(tmpdir(), "codemem-agent-detect-stale-skill-"));
+    mkdirSync(join(skillDir, "runtime", "bin"), { recursive: true });
+    mkdirSync(join(skillDir, "templates"), { recursive: true });
+    writeFileSync(join(skillDir, "SKILL.md"), "---\nname: codemem\n---\n");
+
+    const result = detectAgentInstallations({
+      agent: "codex",
+      targetDir,
+      skillDir,
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.configured).toBe(false);
   });
 
   test("installs a Claude Code slash command into the target project", async () => {
@@ -102,6 +150,7 @@ describe("agent install and export", () => {
     expect(readFileSync(result.integrationPath, "utf8")).toContain("默认把请求范围内显然该做的事情一轮做完");
     expect(readFileSync(result.integrationPath, "utf8")).toContain("如果你要，我可以继续");
     expect(readFileSync(result.integrationPath, "utf8")).toContain("普通项目初始化扫描目标是沉淀 20-40 条");
+    expect(readFileSync(result.integrationPath, "utf8")).toContain("scripts/codemem.mjs");
     expect(readFileSync(result.integrationPath, "utf8")).toContain("枚举和常量定义规范");
   });
 
@@ -121,6 +170,7 @@ describe("agent install and export", () => {
     expect(existsSync(result.packageDir)).toBe(true);
     expect(existsSync(join(result.packageDir, "install.mjs"))).toBe(true);
     expect(existsSync(join(result.packageDir, "runtime", "bin", "codemem-build"))).toBe(true);
+    expect(existsSync(join(result.packageDir, "runtime", "scripts", "codemem.mjs"))).toBe(true);
     expect(existsSync(join(result.packageDir, "runtime", "templates", "global-standard.zh.template.md"))).toBe(true);
     expect(existsSync(join(result.packageDir, "integrations", "codex", "SKILL.md"))).toBe(true);
     expect(existsSync(join(result.packageDir, "integrations", "codex", "agents", "openai.yaml"))).toBe(true);
@@ -129,6 +179,8 @@ describe("agent install and export", () => {
     expect(existsSync(join(result.packageDir, "integrations", "cursor", "runtime", "bin", "codemem-init"))).toBe(false);
     expect(existsSync(join(result.packageDir, "integrations", "cursor", "templates", "project-standard.zh.template.md"))).toBe(false);
     expect(existsSync(join(result.packageDir, "integrations", "claude-code", "codemem.md"))).toBe(true);
+    expect(readFileSync(join(result.packageDir, "integrations", "codex", "SKILL.md"), "utf8")).toContain("__CODEMEM_SKILL_DIR__");
+    expect(readFileSync(join(result.packageDir, "integrations", "cursor", "SKILL.md"), "utf8")).toContain("__CODEMEM_SKILL_DIR__");
     expect(existsSync(result.archiveFile)).toBe(true);
     expect(existsSync(result.digestFile)).toBe(true);
   }, 20000);
@@ -166,7 +218,12 @@ describe("agent install and export", () => {
     expect(existsSync(join(skillDir, "SKILL.md"))).toBe(true);
     expect(existsSync(join(skillDir, "agents", "openai.yaml"))).toBe(true);
     expect(existsSync(join(skillDir, "runtime", "bin", "codemem-build"))).toBe(true);
+    expect(existsSync(join(skillDir, "scripts", "codemem.mjs"))).toBe(true);
     expect(existsSync(join(skillDir, "templates", "project-standard.zh.template.md"))).toBe(true);
+    const skillDoc = readFileSync(join(skillDir, "SKILL.md"), "utf8");
+    expect(skillDoc).toContain(join(skillDir, "scripts", "codemem.mjs"));
+    expect(skillDoc).not.toContain("__CODEMEM_SKILL_DIR__");
+    expect(skillDoc).not.toContain(outputDir);
     expect(existsSync(join(targetDir, ".codemem", "_system", "runtime", "agent-runtime", "bin", "codemem-build"))).toBe(false);
   }, 20000);
 
@@ -203,6 +260,52 @@ describe("agent install and export", () => {
     expect(result.status).toBe(0);
     expect(existsSync(join(homeDir, ".codex", "skills", "codemem", "SKILL.md"))).toBe(true);
     expect(existsSync(join(homeDir, ".codex", "skills", "codemem", "meta.json"))).toBe(true);
+    expect(existsSync(join(homeDir, ".codex", "skills", "codemem", "scripts", "codemem.mjs"))).toBe(true);
+    const skillDoc = readFileSync(join(homeDir, ".codex", "skills", "codemem", "SKILL.md"), "utf8");
+    expect(skillDoc).toContain(join(homeDir, ".codex", "skills", "codemem", "scripts", "codemem.mjs"));
+    expect(skillDoc).not.toContain("__CODEMEM_SKILL_DIR__");
+    expect(skillDoc).not.toContain(outputDir);
+  }, 20000);
+
+  test("exported package installer writes Claude command pointing at shared skill scripts", () => {
+    const root = process.cwd();
+    const homeDir = mkdtempSync(join(tmpdir(), "codemem-agent-export-claude-home-"));
+    const outputDir = mkdtempSync(join(tmpdir(), "codemem-agent-export-claude-install-"));
+    const targetDir = mkdtempSync(join(tmpdir(), "codemem-agent-export-claude-target-"));
+
+    const exported = exportAgentPackage({
+      rootDir: root,
+      agent: "claude-code",
+      targetDir: outputDir,
+      version: "1.0.3",
+      lang: "zh",
+      packageName: "codemem-agent-kit",
+    });
+
+    const result = spawnSync("node", [
+      join(exported.packageDir, "install.mjs"),
+      "--agent",
+      "claude-code",
+      "--target-dir",
+      targetDir,
+    ], {
+      cwd: exported.packageDir,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HOME: homeDir,
+      },
+    });
+
+    const commandFile = join(targetDir, ".claude", "commands", "codemem.md");
+    const sharedSkillDir = join(homeDir, ".codex", "skills", "codemem");
+    expect(result.status).toBe(0);
+    expect(existsSync(commandFile)).toBe(true);
+    expect(existsSync(join(sharedSkillDir, "scripts", "codemem.mjs"))).toBe(true);
+    const commandDoc = readFileSync(commandFile, "utf8");
+    expect(commandDoc).toContain(join(sharedSkillDir, "scripts", "codemem.mjs"));
+    expect(commandDoc).not.toContain("__CODEMEM_");
+    expect(commandDoc).not.toContain(outputDir);
   }, 20000);
 
   test("cli agent command handles --root before the subcommand", () => {

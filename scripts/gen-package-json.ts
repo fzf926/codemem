@@ -10,7 +10,6 @@ const staticScripts: Record<string, string> = {
   "build:cli": "bash scripts/build.sh",
   "build:compiled-cli": "bun run scripts/build-cli.ts",
   "gen:package-json": "bun run scripts/gen-package-json.ts",
-  "gen:bin": "bun run scripts/gen-bin.ts",
   "gen:skill-docs": "bun run scripts/gen-skill-docs.ts",
   "gen:readme": "bun run scripts/gen-readme.ts",
   test: "bun test",

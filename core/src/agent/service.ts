@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { getAgentPackagesDir } from "../shared/paths";
 import { run, runTar } from "../shared/process";
@@ -93,6 +93,10 @@ const RUNTIME_BINARIES = ["codemem-init", "codemem-capture", "codemem-build", "c
 const AGENT_PACKAGE_SCHEMA = 1;
 const AGENT_SKILL_NAME = "codemem";
 const CLAUDE_COMMAND_FILE = "codemem.md";
+const EXPORT_SKILL_DIR_PLACEHOLDER = "__CODEMEM_SKILL_DIR__";
+const EXPORT_SHARED_SKILL_DIR_PLACEHOLDER = "__CODEMEM_SHARED_SKILL_DIR__";
+const EXPORT_TARGET_DIR_PLACEHOLDER = "__CODEMEM_TARGET_DIR__";
+const EXPORT_RUNTIME_BIN_DIR_PLACEHOLDER = "__CODEMEM_RUNTIME_BIN_DIR__";
 
 function getHomeDir(): string {
   return process.env.HOME || homedir();
@@ -102,19 +106,17 @@ function renderCodexOpenAiYaml(lang: string): string {
   return [
     "interface:",
     `  display_name: "Codemem Standards"`,
-    `  short_description: "${lang === "en" ? "Initialize codemem, capture development standards, and regenerate standards docs in one pass unless a high-risk decision requires confirmation." : "为当前项目初始化 codemem、记录开发规范，并默认一轮完成规范文档更新，只有高风险决策才打断确认。"}"`,
-    `  default_prompt: "${lang === "en" ? "Use Codemem Standards to initialize the current project, infer the project name, capture stable development standards, and execute the full workflow in one pass unless a high-risk decision requires confirmation." : "使用 Codemem Standards 为当前项目初始化 codemem，自动推断项目名，记录稳定开发规范，并默认一轮执行到底，只有高风险决策才打断确认。"}"`,
+    `  short_description: "为当前项目初始化 codemem、记录开发规范，并默认一轮完成规范文档更新，只有高风险决策才打断确认。"`,
+    `  default_prompt: "使用 Codemem Standards 为当前项目初始化 codemem，自动推断项目名，记录稳定开发规范，并默认一轮执行到底，只有高风险决策才打断确认。"`,
     "",
   ].join("\n");
 }
 
 function renderCursorMetaJson(rootDir: string, lang: string): string {
-  const description = lang === "en"
-    ? "Initialize codemem for the current project, capture development standards, and finish the workflow in one pass unless a high-risk decision requires confirmation."
-    : "为当前项目初始化 codemem、记录开发规范，并默认一轮执行到底，只有高风险决策才打断确认。";
+  const description = "为当前项目初始化 codemem、记录开发规范，并默认一轮执行到底，只有高风险决策才打断确认。";
   return `${JSON.stringify({
     slug: AGENT_SKILL_NAME,
-    name: lang === "en" ? "Codemem Development Standards" : "Codemem 项目开发规范",
+    name: "Codemem 项目开发规范",
     version: loadVersion(rootDir),
     description,
     descriptionZh: "为当前项目初始化 codemem、记录开发规范，并默认一轮执行到底，只有高风险决策才打断确认。",
@@ -150,6 +152,10 @@ function getSharedTemplatesDir(skillDir: string): string {
   return join(skillDir, "templates");
 }
 
+function getSharedScriptsDir(skillDir: string): string {
+  return join(skillDir, "scripts");
+}
+
 function copyDir(source: string, destination: string): void {
   mkdirSync(destination, { recursive: true });
 
@@ -177,52 +183,32 @@ function ensureCompiledRuntime(rootDir: string): void {
   run("bun", ["run", "scripts/build-cli.ts"], { cwd: rootDir });
 }
 
-function installSharedSkillBundle(rootDir: string, skillDir: string): { runtimeBinDir: string; templatesDir: string } {
+function installSharedSkillBundle(rootDir: string, skillDir: string): { runtimeBinDir: string; templatesDir: string; scriptsDir: string } {
   ensureCompiledRuntime(rootDir);
 
   const runtimeBinDir = getSharedRuntimeBinDir(skillDir);
   const templatesDir = getSharedTemplatesDir(skillDir);
+  const scriptsDir = getSharedScriptsDir(skillDir);
   const sourceTemplatesDir = join(rootDir, "skills", "codemem", "templates");
+  const sourceScriptsDir = join(rootDir, "skills", "codemem", "scripts");
   const distDir = join(rootDir, "core", "dist");
 
+  rmSync(runtimeBinDir, { recursive: true, force: true });
+  rmSync(templatesDir, { recursive: true, force: true });
+  rmSync(scriptsDir, { recursive: true, force: true });
   mkdirSync(runtimeBinDir, { recursive: true });
   mkdirSync(templatesDir, { recursive: true });
+  mkdirSync(scriptsDir, { recursive: true });
 
   for (const binary of RUNTIME_BINARIES) {
     copyFileSync(join(distDir, binary), join(runtimeBinDir, binary));
   }
 
   copyDir(sourceTemplatesDir, templatesDir);
+  copyDir(sourceScriptsDir, scriptsDir);
 
-  return { runtimeBinDir, templatesDir };
+  return { runtimeBinDir, templatesDir, scriptsDir };
 }
-
-function relativeFromProject(targetDir: string, absolutePath: string): string {
-  const path = relative(targetDir, absolutePath) || ".";
-  return toPosixPath(path.startsWith(".") ? path : `./${path}`);
-}
-
-const scanDimensionsEn = [
-  "overall directory structure",
-  "architecture design principles",
-  "class naming conventions",
-  "method naming conventions",
-  "variable naming conventions",
-  "business layer boundaries",
-  "annotation usage",
-  "parameter validation",
-  "exception handling",
-  "data access",
-  "MapStruct usage",
-  "pagination queries",
-  "cache usage",
-  "enum and constant definitions",
-  "logging",
-  "performance requirements",
-  "null handling",
-  "unit testing",
-  "module extension rules for adding new business modules",
-];
 
 const scanDimensionsZh = [
   "整体的目录结构规范",
@@ -246,114 +232,96 @@ const scanDimensionsZh = [
   "模块扩展规范（新业务模块进入是如何处理）",
 ];
 
-function renderScanDimensions(lang: string): string[] {
-  const dimensions = lang === "en" ? scanDimensionsEn : scanDimensionsZh;
-  return dimensions.map((item) => `   - ${item}`);
+function renderScanDimensions(): string[] {
+  return scanDimensionsZh.map((item) => `   - ${item}`);
 }
 
-function renderSharedWorkflow(input: { runtimeBinDir: string; templatesDir: string; lang: string }): string {
-  const initCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.templatesDir)}" ${toPosixPath(join(input.runtimeBinDir, "codemem-init"))}`;
-  const captureCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.templatesDir)}" ${toPosixPath(join(input.runtimeBinDir, "codemem-capture"))}`;
-  const buildCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.templatesDir)}" ${toPosixPath(join(input.runtimeBinDir, "codemem-build"))}`;
+function renderAgentAutoCaptureSignals(): string[] {
+  return [
+    "   - architecture or design pattern refactors",
+    "   - replacing if/else or switch dispatch with strategies, factories, handlers, registries, or template methods",
+    "   - converting MQ or event consumer branching into topic factories, tag strategies, handler registries, or other reusable dispatch mechanisms",
+    "   - extracting reusable module boundaries, layered responsibilities, or domain service splits",
+    "   - unifying inconsistent implementations into one shared mechanism, base class, adapter, or orchestration flow",
+    "   - introducing stable conventions for MQ consumers, events, jobs, schedulers, controllers, or service orchestration",
+    "   - standardizing error handling, validation, logging, idempotency, retry, timeout, or fallback behavior",
+    "   - redesigning repository, cache, RPC, HTTP client, or persistence access patterns",
+    "   - introducing shared naming, packaging, configuration, or dependency injection conventions",
+    "   - reorganizing project structure, module boundaries, build layout, or deployment integration",
+    "   - defining reusable testing, mocking, fixture, contract, or migration patterns",
+  ];
+}
+
+function renderAgentAutoCaptureWorkflow(): string[] {
+  return [
+    "10. 初始化之外，当任务形成可复用工程约定时，也要主动记录并重新生成规范文档，尤其包括：",
+    ...renderAgentAutoCaptureSignals(),
+    "   不要求用户显式提到 codemem；只要架构重构或代码改造沉淀出了稳定约定，就记录这些规范。",
+    "   当以上信号出现且实现落成了可复用约定时，在最终回复前记录对应规范并重新生成规范文档。",
+    "   不要把架构或重构产生的规范记录当成代码改完后的可选后续事项。",
+  ];
+}
+
+function renderSharedWorkflow(input: { scriptFile: string; lang: string }): string {
+  const initCommand = `node "${toPosixPath(input.scriptFile)}" init`;
+  const captureCommand = `node "${toPosixPath(input.scriptFile)}" capture`;
+  const buildCommand = `node "${toPosixPath(input.scriptFile)}" build`;
   const globalDoc = ".codemem/docs/global/global-standard.md";
   const projectDoc = ".codemem/docs/projects/project-standard.<project_name>.md";
   const conflictsDoc = ".codemem/docs/reports/standards-conflicts.md";
-
-  if (input.lang === "en") {
-    return [
-      "When this workflow is invoked:",
-      `1. First read existing standards docs when present: \`${globalDoc}\`, \`${projectDoc}\`, and \`${conflictsDoc}\`.`,
-      "2. Treat the loaded standards docs as the default conventions for the current project before making decisions.",
-      "3. Check whether the current project already has `.codemem/` state.",
-      "4. Use the globally shared codemem runtime and templates installed with this skill.",
-      "5. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
-      "6. Default to finishing all obvious in-scope work in one pass. Do not stop after a partial scan to offer optional next steps.",
-      `7. Use \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` to initialize.`,
-      "8. During initialization scans, cover this required checklist before deciding the scan is complete:",
-      ...renderScanDimensions("en"),
-      "9. Capture stable development conventions as separate rules when the user or the codebase reveals them. Aim for at least one evidenced rule per applicable checklist item and 20-40 well-supported rules on a normal project; do not stop at only 3-5 core rules unless there is genuinely too little evidence.",
-      "10. If fewer than 20 rules are captured during an initialization scan, state the evidence limit explicitly in the final response.",
-      `11. Use \`${captureCommand} --root <project_root> ...\` to append one rule at a time.`,
-      `12. Regenerate standards docs in the same run when new rules were captured, state changed, or the user asked for initialization or a standards update.`,
-      `13. Run \`${buildCommand} --root <project_root> --project <name> --lang en\` unless a high-risk decision still needs confirmation.`,
-      "14. Ask one concise confirmation question only for high-risk cases: uncertain project identity, destructive overwrite, or unresolved standards conflict.",
-      "15. Do not end with offers such as \"if you want, I can continue\". If the next action is low-risk and clearly belongs to the user's request, do it before the final response.",
-    ].join("\n");
-  }
 
   return [
     "当这个工作流被调用时：",
     `1. 优先读取已有规范文档：\`${globalDoc}\`、\`${projectDoc}\`、\`${conflictsDoc}\`（如果存在）。`,
     "2. 把已读取到的规范文档视为当前项目的默认约束，再进行后续判断与执行。",
     "3. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
-    "4. 使用当前 skill 安装时自带的全局共享 runtime 和模板。",
+    "4. 使用当前 skill 安装时自带的 JavaScript runtime 和模板。",
     "5. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
     "6. 默认把请求范围内显然该做的事情一轮做完，不要只完成部分扫描后停下来提供可选下一步。",
-    `7. 使用 \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root>\` 完成初始化。`,
+    `7. 使用 \`${initCommand} --root <project_root> --project <name> --owner <owner> --project-path <project_root> [--project-doc-path <relative_md_path>]\` 完成初始化；当项目规范文档需要写入自定义相对路径和文件名时，传入 \`--project-doc-path\`。`,
     "8. 初始化扫描时，必须先覆盖以下固定清单，再判断扫描完成：",
-    ...renderScanDimensions("zh"),
+    ...renderScanDimensions(),
     "9. 当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。每个适用清单项至少沉淀 1 条有证据支撑的规范，普通项目初始化扫描目标是沉淀 20-40 条规范；不要只挑 3-5 条核心规范就停止，除非项目证据确实不足。",
-    "10. 如果初始化扫描少于 20 条规范，最终回复必须明确说明是哪些证据不足导致数量较少。",
-    `11. 使用 \`${captureCommand} --root <project_root> ...\` 逐条追加规范。`,
-    "12. 只要本轮新增了规范、项目状态发生变化、或用户要求初始化/更新规范文档，就在同一轮里继续生成规范文档。",
-    `13. 直接执行 \`${buildCommand} --root <project_root> --project <name> --lang zh\`，除非仍存在高风险决策需要确认。`,
-    "14. 只有在高风险场景下才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
-    "15. 不要用“如果你要，我可以继续……”作为收尾；如果下一步低风险且明显属于用户请求范围，就先做完再最终汇报。",
+    ...renderAgentAutoCaptureWorkflow(),
+    "11. 如果初始化扫描少于 20 条规范，最终回复必须明确说明是哪些证据不足导致数量较少。",
+    `12. 使用 \`${captureCommand} --root <project_root> ...\` 逐条追加规范。`,
+    "13. 只要本轮新增了规范、项目状态发生变化、或用户要求初始化/更新规范文档，就在同一轮里继续生成规范文档。",
+    `14. 直接执行 \`${buildCommand} --root <project_root> --project <name> --lang zh\`，除非仍存在高风险决策需要确认。`,
+    "15. 只有在高风险场景下才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
+    "16. 不要用“如果你要，我可以继续……”作为收尾；如果下一步低风险且明显属于用户请求范围，就先做完再最终汇报。",
   ].join("\n");
 }
 
 function renderCursorWorkflow(input: {
   lang: string;
-  globalRuntimeBinDir: string;
-  globalTemplatesDir: string;
+  globalScriptFile: string;
 }): string {
-  const initCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.globalTemplatesDir)}" ${toPosixPath(join(input.globalRuntimeBinDir, "codemem-init"))} --root <project_root> --project <name> --owner <owner> --project-path <project_root>`;
-  const captureCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.globalTemplatesDir)}" ${toPosixPath(join(input.globalRuntimeBinDir, "codemem-capture"))} --root <project_root> ...`;
-  const buildCommand = `CODEMEM_TEMPLATES_DIR="${toPosixPath(input.globalTemplatesDir)}" ${toPosixPath(join(input.globalRuntimeBinDir, "codemem-build"))} --root <project_root> --project <name> --lang ${input.lang === "en" ? "en" : "zh"}`;
+  const initCommand = `node "${toPosixPath(input.globalScriptFile)}" init --root <project_root> --project <name> --owner <owner> --project-path <project_root> [--project-doc-path <relative_md_path>]`;
+  const captureCommand = `node "${toPosixPath(input.globalScriptFile)}" capture --root <project_root> ...`;
+  const buildCommand = `node "${toPosixPath(input.globalScriptFile)}" build --root <project_root> --project <name> --lang zh`;
   const globalDoc = ".codemem/docs/global/global-standard.md";
   const projectDoc = ".codemem/docs/projects/project-standard.<project_name>.md";
   const conflictsDoc = ".codemem/docs/reports/standards-conflicts.md";
-
-  if (input.lang === "en") {
-    return [
-      "When this workflow is invoked:",
-      `1. First read existing standards docs when present: \`${globalDoc}\`, \`${projectDoc}\`, and \`${conflictsDoc}\`.`,
-      "2. Treat the loaded standards docs as the default conventions for the current project before making decisions.",
-      "3. Check whether the current project already has `.codemem/` state.",
-      "4. Use the globally shared runtime and templates bundled with this skill.",
-      "5. If the project is not initialized, infer the project name from the current directory name, repo name, or package metadata.",
-      "6. Default to finishing all obvious in-scope work in one pass. Do not stop after a partial scan to offer optional next steps.",
-      `7. Use \`${initCommand}\` to initialize.`,
-      "8. During initialization scans, cover this required checklist before deciding the scan is complete:",
-      ...renderScanDimensions("en"),
-      "9. Capture stable development conventions as separate rules when the user or the codebase reveals them. Aim for at least one evidenced rule per applicable checklist item and 20-40 well-supported rules on a normal project; do not stop at only 3-5 core rules unless there is genuinely too little evidence.",
-      "10. If fewer than 20 rules are captured during an initialization scan, state the evidence limit explicitly in the final response.",
-      `11. Use \`${captureCommand}\` to append one rule at a time.`,
-      "12. Regenerate standards docs in the same run when new rules were captured, state changed, or the user asked for initialization or a standards update.",
-      `13. Run \`${buildCommand}\` unless a high-risk decision still needs confirmation.`,
-      "14. Ask one concise confirmation question only for high-risk cases: uncertain project identity, destructive overwrite, or unresolved standards conflict.",
-      "15. Do not end with offers such as \"if you want, I can continue\". If the next action is low-risk and clearly belongs to the user's request, do it before the final response.",
-    ].join("\n");
-  }
 
   return [
     "当这个工作流被调用时：",
     `1. 优先读取已有规范文档：\`${globalDoc}\`、\`${projectDoc}\`、\`${conflictsDoc}\`（如果存在）。`,
     "2. 把已读取到的规范文档视为当前项目的默认约束，再进行后续判断与执行。",
     "3. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
-    "4. 使用当前 skill 自带的全局共享 runtime 和模板。",
+    "4. 使用当前 skill 自带的 JavaScript runtime 和模板。",
     "5. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
     "6. 默认把请求范围内显然该做的事情一轮做完，不要只完成部分扫描后停下来提供可选下一步。",
-    `7. 使用 \`${initCommand}\` 完成初始化。`,
+    `7. 使用 \`${initCommand}\` 完成初始化；当项目规范文档需要写入自定义相对路径和文件名时，传入 \`--project-doc-path\`。`,
     "8. 初始化扫描时，必须先覆盖以下固定清单，再判断扫描完成：",
-    ...renderScanDimensions("zh"),
+    ...renderScanDimensions(),
     "9. 当用户或代码上下文暴露出稳定约定时，把每条规范单独记录下来。每个适用清单项至少沉淀 1 条有证据支撑的规范，普通项目初始化扫描目标是沉淀 20-40 条规范；不要只挑 3-5 条核心规范就停止，除非项目证据确实不足。",
-    "10. 如果初始化扫描少于 20 条规范，最终回复必须明确说明是哪些证据不足导致数量较少。",
-    `11. 使用 \`${captureCommand}\` 逐条追加规范。`,
-    "12. 只要本轮新增了规范、项目状态发生变化、或用户要求初始化/更新规范文档，就在同一轮里继续生成规范文档。",
-    `13. 直接执行 \`${buildCommand}\`，除非仍存在高风险决策需要确认。`,
-    "14. 只有在高风险场景下才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
-    "15. 不要用“如果你要，我可以继续……”作为收尾；如果下一步低风险且明显属于用户请求范围，就先做完再最终汇报。",
+    ...renderAgentAutoCaptureWorkflow(),
+    "11. 如果初始化扫描少于 20 条规范，最终回复必须明确说明是哪些证据不足导致数量较少。",
+    `12. 使用 \`${captureCommand}\` 逐条追加规范。`,
+    "13. 只要本轮新增了规范、项目状态发生变化、或用户要求初始化/更新规范文档，就在同一轮里继续生成规范文档。",
+    `14. 直接执行 \`${buildCommand}\`，除非仍存在高风险决策需要确认。`,
+    "15. 只有在高风险场景下才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
+    "16. 不要用“如果你要，我可以继续……”作为收尾；如果下一步低风险且明显属于用户请求范围，就先做完再最终汇报。",
   ].join("\n");
 }
 
@@ -372,43 +340,25 @@ const agentSpecs: AgentTargetSpec[] = [
     },
     renderIntegration({ runtimeBinDir, skillDir, lang }) {
       const workflow = renderSharedWorkflow({
-        runtimeBinDir,
-        templatesDir: getSharedTemplatesDir(skillDir),
+        scriptFile: join(skillDir, "scripts", "codemem.mjs"),
         lang,
       });
-      const description = lang === "en"
-        ? "Use when the user wants the agent to initialize codemem for the current project, capture development standards, or finish standards updates in one pass unless a high-risk decision requires confirmation."
-        : "当用户希望 agent 为当前项目初始化 codemem、记录开发规范、或默认一轮完成规范更新且只有高风险才确认时使用。";
-      const title = lang === "en" ? "Codemem Development Standards" : "Codemem 项目开发规范";
-      const body = lang === "en"
-        ? [
-          `# ${title}`,
-          "",
-          workflow,
-          "",
-          "Operational rules:",
-          "- Default to the current working directory as the project root.",
-          "- Infer the project name automatically when possible.",
-          "- Default to finishing initialization, capture, scanning, and document generation in one pass.",
-          "- On initialization scans, cover every applicable checklist dimension and capture 20-40 evidenced standards when the repository supports it.",
-          "- Do not offer optional follow-ups for obvious low-risk work; do the work before the final response.",
-          "- Pause only for high-risk decisions: uncertain project identity, destructive overwrite, or unresolved standards conflict.",
-          "- Keep output concise and execution-oriented.",
-        ].join("\n")
-        : [
-          `# ${title}`,
-          "",
-          workflow,
-          "",
-          "执行规则：",
-          "- 默认把当前工作目录视为项目根目录。",
-          "- 尽量自动推断项目名称。",
-          "- 默认连续完成初始化、规范记录、项目扫描和文档生成，不要拆成多轮确认。",
-          "- 初始化扫描必须覆盖固定清单中的每个适用维度；仓库证据支持时，应沉淀 20-40 条规范。",
-          "- 不要把明显低风险的后续工作包装成“如果你要，我可以继续”；先做完再最终汇报。",
-          "- 只有高风险决策才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
-          "- 输出保持简洁，以执行为主。",
-        ].join("\n");
+      const description = "当当前 agent 需要初始化 codemem、记录开发规范、默认一轮完成规范更新，或在架构重构、MQ 消费改造、策略工厂、分发处理器等可复用工程约定形成后自动更新规范时使用。";
+      const title = "Codemem 项目开发规范";
+      const body = [
+        `# ${title}`,
+        "",
+        workflow,
+        "",
+        "执行规则：",
+        "- 默认把当前工作目录视为项目根目录。",
+        "- 尽量自动推断项目名称。",
+        "- 默认连续完成初始化、规范记录、项目扫描和文档生成，不要拆成多轮确认。",
+        "- 初始化扫描必须覆盖固定清单中的每个适用维度；仓库证据支持时，应沉淀 20-40 条规范。",
+        "- 不要把明显低风险的后续工作包装成“如果你要，我可以继续”；先做完再最终汇报。",
+        "- 只有高风险决策才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
+        "- 输出保持简洁，以执行为主。",
+      ].join("\n");
       return [
         "---",
         `name: ${AGENT_SKILL_NAME}`,
@@ -436,48 +386,28 @@ const agentSpecs: AgentTargetSpec[] = [
     renderIntegration({ runtimeBinDir, skillDir, lang }) {
       const workflow = renderCursorWorkflow({
         lang,
-        globalRuntimeBinDir: runtimeBinDir,
-        globalTemplatesDir: getSharedTemplatesDir(skillDir),
+        globalScriptFile: join(skillDir, "scripts", "codemem.mjs"),
       });
       const installDir = toPosixPath(skillDir);
 
-      const description = lang === "en"
-        ? "Use when the user wants Cursor to initialize codemem for the current project, capture development standards, or finish standards updates in one pass unless a high-risk decision requires confirmation."
-        : "当用户希望 Cursor 为当前项目初始化 codemem、记录开发规范、或默认一轮完成规范更新且只有高风险才确认时使用。";
-      const title = lang === "en" ? "Codemem Development Standards" : "Codemem 项目开发规范";
-      const body = lang === "en"
-        ? [
-          `# ${title}`,
-          "",
-          `This skill is installed in \`${installDir}\` and provides globally shared runtime and templates for every project.`,
-          "",
-          workflow,
-          "",
-          "Operational rules:",
-          "- Default to the current working directory as the project root.",
-          "- Infer the project name automatically when possible.",
-          "- Default to finishing initialization, capture, scanning, and document generation in one pass.",
-          "- On initialization scans, cover every applicable checklist dimension and capture 20-40 evidenced standards when the repository supports it.",
-          "- Do not offer optional follow-ups for obvious low-risk work; do the work before the final response.",
-          "- Pause only for high-risk decisions: uncertain project identity, destructive overwrite, or unresolved standards conflict.",
-          "- Keep output concise and execution-oriented.",
-        ].join("\n")
-        : [
-          `# ${title}`,
-          "",
-          `这个 skill 安装在 \`${installDir}\`，提供全局共享的 runtime 和模板，供所有项目共用。`,
-          "",
-          workflow,
-          "",
-          "执行规则：",
-          "- 默认把当前工作目录视为项目根目录。",
-          "- 尽量自动推断项目名称。",
-          "- 默认连续完成初始化、规范记录、项目扫描和文档生成，不要拆成多轮确认。",
-          "- 初始化扫描必须覆盖固定清单中的每个适用维度；仓库证据支持时，应沉淀 20-40 条规范。",
-          "- 不要把明显低风险的后续工作包装成“如果你要，我可以继续”；先做完再最终汇报。",
-          "- 只有高风险决策才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
-          "- 输出保持简洁，以执行为主。",
-        ].join("\n");
+      const description = "当当前 agent 需要初始化 codemem、记录开发规范、默认一轮完成规范更新，或在架构重构、MQ 消费改造、策略工厂、分发处理器等可复用工程约定形成后自动更新规范时使用。";
+      const title = "Codemem 项目开发规范";
+      const body = [
+        `# ${title}`,
+        "",
+        `这个 skill 安装在 \`${installDir}\`，提供全局共享的 JavaScript runtime 和模板，供所有项目共用。`,
+        "",
+        workflow,
+        "",
+        "执行规则：",
+        "- 默认把当前工作目录视为项目根目录。",
+        "- 尽量自动推断项目名称。",
+        "- 默认连续完成初始化、规范记录、项目扫描和文档生成，不要拆成多轮确认。",
+        "- 初始化扫描必须覆盖固定清单中的每个适用维度；仓库证据支持时，应沉淀 20-40 条规范。",
+        "- 不要把明显低风险的后续工作包装成“如果你要，我可以继续”；先做完再最终汇报。",
+        "- 只有高风险决策才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
+        "- 输出保持简洁，以执行为主。",
+      ].join("\n");
       return [
         "---",
         `name: ${AGENT_SKILL_NAME}`,
@@ -510,19 +440,16 @@ const agentSpecs: AgentTargetSpec[] = [
     },
     renderIntegration({ runtimeBinDir, targetDir, skillDir, lang }) {
       const workflow = renderSharedWorkflow({
-        runtimeBinDir,
-        templatesDir: getSharedTemplatesDir(getDefaultHomeSkillDir()),
+        scriptFile: join(runtimeBinDir, "..", "..", "scripts", "codemem.mjs"),
         lang,
       });
       const relRuntime = toPosixPath(runtimeBinDir);
-      const installDir = relativeFromProject(targetDir, dirname(join(skillDir, CLAUDE_COMMAND_FILE)));
+      const installDir = toPosixPath(skillDir);
 
       return [
         "# /codemem",
         "",
-        lang === "en"
-          ? `This command is installed in \`${installDir}\` and uses the shared global runtime in \`${relRuntime}\`.`
-          : `这个命令安装在 \`${installDir}\`，使用全局共享的 \`${relRuntime}\` runtime。`,
+        `这个命令安装在 \`${installDir}\`，使用全局共享的 \`${relRuntime}\` runtime。`,
         "",
         workflow,
       ].join("\n");
@@ -704,7 +631,11 @@ export function detectAgentInstallations(options: {
     const integrationPath = spec.integrationPath(targetDir, skillDir);
     const runtimeBinDir = getSharedRuntimeBinDir(sharedSkillDir);
     const templatesDir = getSharedTemplatesDir(sharedSkillDir);
-    const configured = existsSync(integrationPath) && existsSync(runtimeBinDir) && existsSync(templatesDir);
+    const scriptFile = join(getSharedScriptsDir(sharedSkillDir), "codemem.mjs");
+    const configured = existsSync(integrationPath)
+      && existsSync(runtimeBinDir)
+      && existsSync(templatesDir)
+      && existsSync(scriptFile);
 
     return {
       agent: spec.id,
@@ -739,7 +670,7 @@ function renderExportInstaller(options: {
   version: string;
 }): string {
   return `#!/usr/bin/env node
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -824,6 +755,30 @@ function copyDir(source, destination) {
   }
 }
 
+function renderTemplate(content, replacements) {
+  let next = content;
+  for (const [key, value] of Object.entries(replacements)) {
+    next = next.split(key).join(value);
+  }
+  return next;
+}
+
+function copyTextDir(source, destination, replacements) {
+  mkdirSync(destination, { recursive: true });
+  for (const entry of readdirSync(source)) {
+    const sourceFile = join(source, entry);
+    const destinationFile = join(destination, entry);
+    const stat = statSync(sourceFile);
+    if (stat.isDirectory()) {
+      copyTextDir(sourceFile, destinationFile, replacements);
+    } else {
+      const content = renderTemplate(readFileSync(sourceFile, "utf8"), replacements);
+      mkdirSync(dirname(destinationFile), { recursive: true });
+      writeFileSync(destinationFile, content);
+    }
+  }
+}
+
 function parseArgs(argv) {
   const values = new Map();
   for (let index = 2; index < argv.length; index += 1) {
@@ -867,16 +822,28 @@ const sharedSkillDir = getSharedSkillDir(agent, skillDir);
 const runtimeSource = join(scriptDir, "runtime");
 const templatesSource = join(runtimeSource, "templates");
 const binSource = join(runtimeSource, "bin");
+const scriptsSource = join(runtimeSource, "scripts");
 const integrationSource = join(scriptDir, "integrations", agent);
 const runtimeTarget = join(sharedSkillDir, "runtime", "bin");
 const templatesTarget = join(sharedSkillDir, "templates");
+const scriptsTarget = join(sharedSkillDir, "scripts");
+const replacements = {
+  "${EXPORT_SKILL_DIR_PLACEHOLDER}": skillDir,
+  "${EXPORT_SHARED_SKILL_DIR_PLACEHOLDER}": sharedSkillDir,
+  "${EXPORT_TARGET_DIR_PLACEHOLDER}": targetDir,
+  "${EXPORT_RUNTIME_BIN_DIR_PLACEHOLDER}": runtimeTarget,
+};
 
+rmSync(runtimeTarget, { recursive: true, force: true });
+rmSync(templatesTarget, { recursive: true, force: true });
+rmSync(scriptsTarget, { recursive: true, force: true });
 copyDir(binSource, runtimeTarget);
 copyDir(templatesSource, templatesTarget);
+copyDir(scriptsSource, scriptsTarget);
 
 let destination = "";
 if (agent === "codex" || agent === "cursor") {
-  copyDir(integrationSource, skillDir);
+  copyTextDir(integrationSource, skillDir, replacements);
   destination = join(skillDir, "SKILL.md");
 } else {
   const files = readdirSync(integrationSource);
@@ -887,7 +854,8 @@ if (agent === "codex" || agent === "cursor") {
   const sourceFile = join(integrationSource, files[0]);
   destination = AGENTS[agent].integrationPath(targetDir, skillDir);
   mkdirSync(dirname(destination), { recursive: true });
-  copyFileSync(sourceFile, destination);
+  const content = renderTemplate(readFileSync(sourceFile, "utf8"), replacements);
+  writeFileSync(destination, content);
 }
 
 console.log("Installed ${options.packageName}@${options.version}");
@@ -909,6 +877,7 @@ export function exportAgentPackage(options: ExportAgentPackageOptions): ExportAg
   const runtimeDir = join(packageDir, "runtime");
   const runtimeBinDir = join(runtimeDir, "bin");
   const runtimeTemplatesDir = join(runtimeDir, "templates");
+  const runtimeScriptsDir = join(runtimeDir, "scripts");
   const integrationsDir = join(packageDir, "integrations");
 
   rmSync(packageDir, { recursive: true, force: true });
@@ -916,6 +885,7 @@ export function exportAgentPackage(options: ExportAgentPackageOptions): ExportAg
   rmSync(digestFile, { force: true });
   mkdirSync(runtimeBinDir, { recursive: true });
   mkdirSync(runtimeTemplatesDir, { recursive: true });
+  mkdirSync(runtimeScriptsDir, { recursive: true });
   mkdirSync(integrationsDir, { recursive: true });
 
   ensureCompiledRuntime(rootDir);
@@ -924,6 +894,7 @@ export function exportAgentPackage(options: ExportAgentPackageOptions): ExportAg
     copyFileSync(join(rootDir, "core", "dist", binary), join(runtimeBinDir, binary));
   }
   copyDir(join(rootDir, "skills", "codemem", "templates"), runtimeTemplatesDir);
+  copyDir(join(rootDir, "skills", "codemem", "scripts"), runtimeScriptsDir);
 
   const targetDir = resolve(options.targetDir || process.cwd());
   for (const spec of agentSpecs) {
@@ -931,16 +902,18 @@ export function exportAgentPackage(options: ExportAgentPackageOptions): ExportAg
       continue;
     }
 
-    const skillDir = spec.defaultSkillDir(targetDir);
     const integrationDir = join(integrationsDir, spec.id);
     mkdirSync(integrationDir, { recursive: true });
-    const fileName = basename(spec.integrationPath(targetDir, skillDir));
+    const fileName = basename(spec.integrationPath(targetDir, spec.defaultSkillDir(targetDir)));
+    const exportRuntimeBinDir = spec.id === "claude-code"
+      ? join(EXPORT_SHARED_SKILL_DIR_PLACEHOLDER, "runtime", "bin")
+      : EXPORT_RUNTIME_BIN_DIR_PLACEHOLDER;
     writeFileSync(
       join(integrationDir, fileName),
       `${spec.renderIntegration({
-        runtimeBinDir: join(skillDir, "runtime", "bin"),
-        targetDir,
-        skillDir,
+        runtimeBinDir: exportRuntimeBinDir,
+        targetDir: EXPORT_TARGET_DIR_PLACEHOLDER,
+        skillDir: EXPORT_SKILL_DIR_PLACEHOLDER,
         lang: options.lang,
       })}\n`,
     );
@@ -966,10 +939,31 @@ export function exportAgentPackage(options: ExportAgentPackageOptions): ExportAg
   writeFileSync(join(packageDir, "install.mjs"), renderExportInstaller({ packageName, version }));
   writeFileSync(join(packageDir, "README.txt"), [
     `Package: ${packageName}@${version}`,
-    "Usage:",
+    "",
+    "This package is self-contained. The receiver does not need the codemem source checkout.",
+    "",
+    "From an extracted package directory:",
+    "",
     "  node install.mjs --agent codex --target-dir <project_dir>",
     "  node install.mjs --agent cursor --target-dir <project_dir>",
     "  node install.mjs --agent claude-code --target-dir <project_dir>",
+    "",
+    "From the archive:",
+    "",
+    `  tar -xzf ${packageName}-${version}.tgz`,
+    `  cd ${packageName}-${version}`,
+    "  node install.mjs --agent cursor --target-dir <project_dir>",
+    "",
+    "Optional:",
+    "",
+    "  --skill-dir <dir>   override the agent integration install directory",
+    "",
+    "Installed files:",
+    "",
+    "  Codex/Cursor: ~/.codex/skills/codemem/",
+    "  Claude Code: <project_dir>/.claude/commands/codemem.md by default",
+    "",
+    "After installation, use the codemem skill from the selected agent in the target project.",
     "",
   ].join("\n"));
 

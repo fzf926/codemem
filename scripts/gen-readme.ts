@@ -1,8 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { commandSpecs } from "../core/src/cli/command-registry";
 import {
-  formatExample,
   renderCommandReference,
   renderInstallPolicy,
   renderPackageCompatibility,
@@ -11,10 +9,15 @@ import {
 const root = process.cwd();
 
 function renderReadmeCommands(): string {
-  const examples = commandSpecs
-    .filter((spec) => ["agent", "upgrade", "capture", "build", "package", "projects"].includes(spec.id))
-    .map((spec) => formatExample(spec.example))
-    .join("\n");
+  const examples = [
+    "bun run core/src/cli/agent.ts --root . install --agent cursor --target-dir <project_dir>",
+    "bun run core/src/cli/agent.ts --root . detect --agent cursor --target-dir <project_dir>",
+    "bun run core/src/cli/upgrade.ts --root . --agent cursor --target-dir <project_dir>",
+    "bun run core/src/cli/capture.ts --root . --project <project_name> --type architecture --title \"规范标题\" --rule \"规范内容\" --priority P1 --status active --scope project",
+    "bun run core/src/cli/build.ts --root . --project <project_name> --lang zh",
+    "bun run core/src/cli/package.ts --root . --project <project_name> --version <version> --lang zh",
+    "bun run core/src/cli/projects.ts --root .",
+  ].join("\n");
   return `\`\`\`bash\n${examples}\n\`\`\``;
 }
 

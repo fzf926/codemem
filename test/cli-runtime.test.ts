@@ -36,4 +36,17 @@ describe("cli runtime", () => {
     expect(result.stderr).toContain("general");
     expect(result.stderr).toContain("release");
   });
+
+  test("rejects English document generation", () => {
+    const result = runCli("core/src/cli/build.ts", [
+      "--project",
+      "codemem",
+      "--lang",
+      "en",
+    ]);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("invalid value for --lang");
+    expect(result.stderr).toContain("zh");
+  });
 });

@@ -2,37 +2,31 @@
 set -euo pipefail
 
 REPO_URL="${CODEMEM_REPO_URL:-git@github.com:fzf926/codemem.git}"
-INSTALL_DIR="${CODEMEM_HOME:-$HOME/.codemem/source}"
-BIN_DIR="${CODEMEM_BIN_DIR:-$HOME/.local/bin}"
+INSTALL_DIR="${CODEMEM_HOME:-$PWD}"
 AGENT="${CODEMEM_AGENT:-cursor}"
 TARGET_DIR="$PWD"
 LANGUAGE="${CODEMEM_LANG:-zh}"
-PROFILE_FILE="${CODEMEM_PROFILE:-}"
 
 usage() {
   cat <<'EOF'
-Install codemem and register the global codemem command.
+Build codemem and install the agent integration for one project.
 
 Usage:
   bash scripts/install.sh [options]
 
 Options:
   --repo-url <url>       Git repository URL. Defaults to git@github.com:fzf926/codemem.git
-  --install-dir <dir>    Local source install directory. Defaults to ~/.codemem/source
-  --bin-dir <dir>        Directory for the global codemem command. Defaults to ~/.local/bin
+  --install-dir <dir>    Local source checkout directory. Defaults to current directory
   --agent <agent>        codex, cursor, or claude-code. Defaults to cursor
   --target-dir <dir>     Project directory used for agent installation. Defaults to current directory
-  --lang <zh|en>         Prompt language. Defaults to zh
-  --profile <file>       Shell profile to update. Defaults to ~/.zshrc or ~/.bashrc
+  --lang <zh>            Prompt language. Only zh is supported.
   -h, --help             Show this help
 
 Environment overrides:
   CODEMEM_REPO_URL
   CODEMEM_HOME
-  CODEMEM_BIN_DIR
   CODEMEM_AGENT
   CODEMEM_LANG
-  CODEMEM_PROFILE
 EOF
 }
 
@@ -46,10 +40,6 @@ while [ "$#" -gt 0 ]; do
       INSTALL_DIR="${2:?missing value for --install-dir}"
       shift 2
       ;;
-    --bin-dir)
-      BIN_DIR="${2:?missing value for --bin-dir}"
-      shift 2
-      ;;
     --agent)
       AGENT="${2:?missing value for --agent}"
       shift 2
@@ -60,10 +50,6 @@ while [ "$#" -gt 0 ]; do
       ;;
     --lang)
       LANGUAGE="${2:?missing value for --lang}"
-      shift 2
-      ;;
-    --profile)
-      PROFILE_FILE="${2:?missing value for --profile}"
       shift 2
       ;;
     -h|--help)
@@ -87,9 +73,9 @@ case "$AGENT" in
 esac
 
 case "$LANGUAGE" in
-  zh|en) ;;
+  zh) ;;
   *)
-    echo "codemem install: --lang must be zh or en" >&2
+    echo "codemem install: --lang must be zh" >&2
     exit 1
     ;;
 esac
@@ -101,18 +87,7 @@ for required in git bash bun; do
   fi
 done
 
-mkdir -p "$(dirname "$INSTALL_DIR")" "$BIN_DIR"
-
-if [ -z "$PROFILE_FILE" ]; then
-  case "$(basename "${SHELL:-}")" in
-    bash)
-      PROFILE_FILE="$HOME/.bashrc"
-      ;;
-    *)
-      PROFILE_FILE="$HOME/.zshrc"
-      ;;
-  esac
-fi
+mkdir -p "$(dirname "$INSTALL_DIR")"
 
 if [ -d "$INSTALL_DIR/.git" ]; then
   echo "Updating codemem source in $INSTALL_DIR"
@@ -129,47 +104,8 @@ fi
 echo "Building codemem"
 bash "$INSTALL_DIR/scripts/build.sh"
 
-SHIM="$BIN_DIR/codemem"
-cat > "$SHIM" <<EOF
-#!/usr/bin/env bash
-set -euo pipefail
-exec "$INSTALL_DIR/bin/codemem" "\$@"
-EOF
-chmod +x "$SHIM"
-
-mkdir -p "$HOME/.codemem/_system"
-cat > "$HOME/.codemem/_system/install.json" <<EOF
-{
-  "schema": 1,
-  "updatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "managedInstallDir": "$INSTALL_DIR",
-  "activeSourceDir": "$INSTALL_DIR",
-  "binDir": "$BIN_DIR",
-  "shimFile": "$SHIM",
-  "profileFile": "$PROFILE_FILE"
-}
-EOF
-
-if [ -n "$PROFILE_FILE" ]; then
-  touch "$PROFILE_FILE"
-  if ! grep -F "$BIN_DIR" "$PROFILE_FILE" >/dev/null 2>&1; then
-    {
-      echo ""
-      echo "# codemem global command"
-      echo "export PATH=\"$BIN_DIR:\$PATH\""
-    } >> "$PROFILE_FILE"
-    echo "Updated shell profile: $PROFILE_FILE"
-  fi
-fi
-
 echo "Installing codemem agent integration"
-"$INSTALL_DIR/bin/codemem" agent install --agent "$AGENT" --target-dir "$TARGET_DIR" --lang "$LANGUAGE"
+bun run "$INSTALL_DIR/core/src/cli/agent.ts" --root "$INSTALL_DIR" install --agent "$AGENT" --target-dir "$TARGET_DIR" --lang "$LANGUAGE"
 
 echo
-echo "codemem installed successfully."
-echo "Command: $SHIM"
-echo
-echo "Open a new terminal, or run this now:"
-echo "  export PATH=\"$BIN_DIR:\$PATH\""
-echo "Next update command:"
-echo "  codemem upgrade"
+echo "codemem agent integration installed successfully."
