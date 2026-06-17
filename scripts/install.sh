@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${CODEMEM_REPO_URL:-git@github.com:fzf926/codemem.git}"
-INSTALL_DIR="${CODEMEM_HOME:-$PWD}"
+REPO_URL="${CODEMEM_REPO_URL:-https://github.com/fzf926/codemem.git}"
+INSTALL_DIR="${CODEMEM_HOME:-}"
 AGENT="${CODEMEM_AGENT:-cursor}"
 TARGET_DIR="$PWD"
 LANGUAGE="${CODEMEM_LANG:-zh}"
+TEMP_INSTALL_ROOT=""
 
 usage() {
   cat <<'EOF'
@@ -15,8 +16,8 @@ Usage:
   bash scripts/install.sh [options]
 
 Options:
-  --repo-url <url>       Git repository URL. Defaults to git@github.com:fzf926/codemem.git
-  --install-dir <dir>    Local source checkout directory. Defaults to current directory
+  --repo-url <url>       Git repository URL. Defaults to https://github.com/fzf926/codemem.git
+  --install-dir <dir>    Local source checkout directory. Defaults to current directory when it is a codemem checkout; otherwise a temporary clone
   --agent <agent>        codex, cursor, or claude-code. Defaults to cursor
   --target-dir <dir>     Project directory used for agent installation. Defaults to current directory
   --lang <zh>            Prompt language. Only zh is supported.
@@ -28,6 +29,16 @@ Environment overrides:
   CODEMEM_AGENT
   CODEMEM_LANG
 EOF
+}
+
+is_codemem_checkout() {
+  [ -d "$1/.git" ] && [ -f "$1/scripts/build.sh" ] && [ -f "$1/core/src/cli/agent.ts" ]
+}
+
+cleanup_temp_install() {
+  if [ -n "$TEMP_INSTALL_ROOT" ] && [ -d "$TEMP_INSTALL_ROOT" ]; then
+    rm -rf "$TEMP_INSTALL_ROOT"
+  fi
 }
 
 while [ "$#" -gt 0 ]; do
@@ -64,6 +75,16 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+if [ -z "$INSTALL_DIR" ]; then
+  if is_codemem_checkout "$PWD"; then
+    INSTALL_DIR="$PWD"
+  else
+    TEMP_INSTALL_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/codemem-install.XXXXXX")"
+    trap cleanup_temp_install EXIT
+    INSTALL_DIR="$TEMP_INSTALL_ROOT/source"
+  fi
+fi
+
 case "$AGENT" in
   codex|cursor|claude-code) ;;
   *)
@@ -89,7 +110,7 @@ done
 
 mkdir -p "$(dirname "$INSTALL_DIR")"
 
-if [ -d "$INSTALL_DIR/.git" ]; then
+if is_codemem_checkout "$INSTALL_DIR"; then
   echo "Updating codemem source in $INSTALL_DIR"
   git -C "$INSTALL_DIR" pull --ff-only
 else

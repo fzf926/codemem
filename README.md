@@ -45,6 +45,14 @@ bun run core/src/cli/projects.ts --root .
 
 推荐在这个项目内构建并为目标项目安装 agent 集成，不再安装全局 `codemem` 命令。
 
+如果用户只想在当前业务项目直接安装，可以在业务项目目录执行远程安装命令：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh | bash -s -- --agent cursor --target-dir "$PWD"
+```
+
+这条命令会临时 clone 当前仓库、构建 runtime、安装 agent skill，然后清理临时源码；不会安装 shell 全局 `codemem` 命令。
+
 如果你已经拿到了源码仓库，也可以执行：
 
 ```bash

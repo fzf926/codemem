@@ -87,6 +87,14 @@ node install.mjs --agent claude-code --target-dir /path/to/project
 
 ## 源码项目内安装方式
 
+如果只是让对方快速安装到当前业务项目，可以直接给这条远程命令：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh | bash -s -- --agent cursor --target-dir "$PWD"
+```
+
+这条命令会临时 clone `codemem` 源码、构建 runtime、安装 agent skill，然后清理临时源码；不会安装 shell 全局 `codemem` 命令。
+
 如果已经拿到源码仓库，可以在源码仓库中执行：
 
 ```bash
