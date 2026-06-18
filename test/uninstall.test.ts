@@ -69,8 +69,8 @@ function seedInstall(root: string) {
     "Project-specific human note.",
     "",
     "<!-- codemem:managed:start -->",
-    "## Codemem Standards",
-    "Read .codemem docs.",
+    "## Codemem 开发规范",
+    "读取 codemem 规范文档。",
     "<!-- codemem:managed:end -->",
     "",
   ].join("\n"));

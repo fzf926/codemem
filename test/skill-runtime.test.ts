@@ -47,7 +47,7 @@ describe("skill project runtime", () => {
       expect(existsSync(join(rootDir, ".codemem"))).toBe(false);
       expect(existsSync(getProjectMarkerFile(rootDir))).toBe(true);
       expect(existsSync(join(getLogsDir(rootDir), "runtime-project.jsonl"))).toBe(true);
-      expect(readFileSync(join(rootDir, "AGENTS.md"), "utf8")).toContain("Codemem Standards");
+      expect(readFileSync(join(rootDir, "AGENTS.md"), "utf8")).toContain("Codemem 开发规范");
 
       const capture = runRuntime([
         "capture",

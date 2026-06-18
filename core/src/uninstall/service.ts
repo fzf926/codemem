@@ -190,7 +190,10 @@ function removeAgentsManagedBlock(targetDir: string, result: UninstallResult, dr
     .replace(new RegExp(`\\n?${AGENTS_MANAGED_START}[\\s\\S]*?${AGENTS_MANAGED_END}\\n?`), "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trimEnd();
-  const generatedOnly = next.trim() === "# AGENTS.md\n\nThis project uses codemem to capture and enforce development standards.";
+  const generatedOnly = [
+    "# AGENTS.md\n\nThis project uses codemem to capture and enforce development standards.",
+    "# AGENTS.md\n\n本项目使用 codemem 沉淀并执行开发规范。",
+  ].includes(next.trim());
 
   if (generatedOnly) {
     removePath(agentsFile, result, dryRun);

@@ -105,9 +105,9 @@ function getHomeDir(): string {
 function renderCodexOpenAiYaml(lang: string): string {
   return [
     "interface:",
-    `  display_name: "Codemem Standards"`,
+    `  display_name: "Codemem 开发规范"`,
     `  short_description: "为当前项目初始化 codemem、记录开发规范，并默认一轮完成规范文档更新，只有高风险决策才打断确认。"`,
-    `  default_prompt: "使用 Codemem Standards 为当前项目初始化 codemem，自动推断项目名，记录稳定开发规范，并默认一轮执行到底，只有高风险决策才打断确认。"`,
+    `  default_prompt: "使用 Codemem 开发规范为当前项目初始化 codemem，自动推断项目名，记录稳定开发规范，并默认一轮执行到底，只有高风险决策才打断确认。"`,
     "",
   ].join("\n");
 }
@@ -238,17 +238,17 @@ function renderScanDimensions(): string[] {
 
 function renderAgentAutoCaptureSignals(): string[] {
   return [
-    "   - architecture or design pattern refactors",
-    "   - replacing if/else or switch dispatch with strategies, factories, handlers, registries, or template methods",
-    "   - converting MQ or event consumer branching into topic factories, tag strategies, handler registries, or other reusable dispatch mechanisms",
-    "   - extracting reusable module boundaries, layered responsibilities, or domain service splits",
-    "   - unifying inconsistent implementations into one shared mechanism, base class, adapter, or orchestration flow",
-    "   - introducing stable conventions for MQ consumers, events, jobs, schedulers, controllers, or service orchestration",
-    "   - standardizing error handling, validation, logging, idempotency, retry, timeout, or fallback behavior",
-    "   - redesigning repository, cache, RPC, HTTP client, or persistence access patterns",
-    "   - introducing shared naming, packaging, configuration, or dependency injection conventions",
-    "   - reorganizing project structure, module boundaries, build layout, or deployment integration",
-    "   - defining reusable testing, mocking, fixture, contract, or migration patterns",
+    "   - 架构或设计模式重构",
+    "   - 将 if/else 或 switch 分发替换为策略、工厂、处理器、注册表或模板方法",
+    "   - 将 MQ 或事件消费者分支改造成 topic 工厂、tag 策略、处理器注册表或其他可复用分发机制",
+    "   - 抽取可复用模块边界、分层职责或领域服务拆分",
+    "   - 将不一致实现统一为共享机制、基类、适配器或编排流程",
+    "   - 为 MQ 消费者、事件、任务、调度器、控制器或服务编排引入稳定约定",
+    "   - 统一错误处理、校验、日志、幂等、重试、超时或降级行为",
+    "   - 重设计仓储、缓存、RPC、HTTP 客户端或持久化访问模式",
+    "   - 引入共享命名、包结构、配置或依赖注入约定",
+    "   - 重组项目结构、模块边界、构建布局或部署集成",
+    "   - 定义可复用测试、mock、fixture、契约或迁移模式",
   ];
 }
 

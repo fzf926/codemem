@@ -35,7 +35,7 @@ describe("agent install and export", () => {
       expect(content).toContain("默认一轮完成规范更新");
       expect(content).toContain("name: codemem");
       expect(content).toContain("JavaScript runtime 和模板");
-      expect(content).toContain("converting MQ or event consumer branching into topic factories");
+      expect(content).toContain("将 MQ 或事件消费者分支改造成 topic 工厂");
       expect(content).toContain("不要求用户显式提到 codemem");
       expect(content).toContain("不要把架构或重构产生的规范记录当成代码改完后的可选后续事项");
       expect(content).toContain("~/.codemem/projects/<project_state_key>/docs/global/global-standard.md");
@@ -84,7 +84,7 @@ describe("agent install and export", () => {
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("name: codemem");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).not.toContain("当用户希望 Cursor");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("架构重构、MQ 消费改造、策略工厂");
-    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("converting MQ or event consumer branching into topic factories");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("将 MQ 或事件消费者分支改造成 topic 工厂");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要求用户显式提到 codemem");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要把架构或重构产生的规范记录当成代码改完后的可选后续事项");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("scripts/codemem.mjs");
@@ -93,7 +93,7 @@ describe("agent install and export", () => {
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要把明显低风险的后续工作包装成");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("固定清单中的每个适用维度");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("缓存使用规范");
-    expect(readFileSync(join(skillDir, "agents", "openai.yaml"), "utf8")).toContain("display_name: \"Codemem Standards\"");
+    expect(readFileSync(join(skillDir, "agents", "openai.yaml"), "utf8")).toContain("display_name: \"Codemem 开发规范\"");
   });
 
   test("reinstall removes stale English templates from the shared skill", async () => {
