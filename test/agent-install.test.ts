@@ -4,7 +4,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { detectAgentInstallations, exportAgentPackage, installAgent } from "../core/src/agent/service";
+import { detectAgentInstallations, exportAgentPackage, exportPortableSkillPackage, installAgent } from "../core/src/agent/service";
 
 describe("agent install and export", () => {
   test("installs a Cursor skill into ~/.codex/skills without copying runtime into the project", async () => {
@@ -225,6 +225,40 @@ describe("agent install and export", () => {
     expect(skillDoc).not.toContain("__CODEMEM_SKILL_DIR__");
     expect(skillDoc).not.toContain(outputDir);
     expect(existsSync(join(targetDir, ".codemem", "_system", "runtime", "agent-runtime", "bin", "codemem-build"))).toBe(false);
+  }, 20000);
+
+  test("exports a portable skill archive that works by direct extraction", () => {
+    const root = process.cwd();
+    const outputDir = mkdtempSync(join(tmpdir(), "codemem-agent-portable-"));
+    const extractHome = mkdtempSync(join(tmpdir(), "codemem-agent-portable-home-"));
+    mkdirSync(join(extractHome, ".codex", "skills"), { recursive: true });
+
+    const exported = exportPortableSkillPackage({
+      rootDir: root,
+      targetDir: outputDir,
+      version: "1.2.3",
+      lang: "zh",
+      packageName: "codemem-skill-portable",
+    });
+
+    const extract = spawnSync("tar", [
+      "-xzf",
+      exported.archiveFile,
+      "-C",
+      join(extractHome, ".codex", "skills"),
+    ], {
+      encoding: "utf8",
+    });
+
+    expect(extract.status).toBe(0);
+    const skillDir = join(extractHome, ".codex", "skills", "codemem");
+    expect(existsSync(join(exported.packageDir, "install.mjs"))).toBe(false);
+    expect(existsSync(join(skillDir, "SKILL.md"))).toBe(true);
+    expect(existsSync(join(skillDir, "scripts", "codemem.mjs"))).toBe(true);
+    expect(existsSync(join(skillDir, "templates", "project-standard.zh.template.md"))).toBe(true);
+    expect(existsSync(join(skillDir, "runtime", "bin", "codemem-build"))).toBe(true);
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("$HOME/.codex/skills/codemem/scripts/codemem.mjs");
+    expect(readFileSync(join(skillDir, "README-portable.txt"), "utf8")).toContain("不需要执行 install.mjs");
   }, 20000);
 
   test("exported package installer writes Cursor skill into ~/.codex/skills", () => {
@@ -611,5 +645,41 @@ describe("agent install and export", () => {
     expect(payload.packageDir).toContain("codemem-agent-kit-1.0.2");
     expect(payload.archiveFile).toContain(".tgz");
     expect(payload.digestFile).toContain(".sha256");
+  }, 20000);
+
+  test("cli agent portable exports direct-extract skill archive", () => {
+    const root = process.cwd();
+    const outputDir = mkdtempSync(join(tmpdir(), "codemem-agent-portable-json-"));
+
+    const result = spawnSync("bun", [
+      "run",
+      "core/src/cli/agent.ts",
+      "--root",
+      root,
+      "portable",
+      "--target-dir",
+      outputDir,
+      "--version",
+      "1.0.3",
+      "--lang",
+      "zh",
+      "--json",
+    ], {
+      cwd: root,
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout) as {
+      packageDir: string;
+      skillDir: string;
+      archiveFile: string;
+      digestFile: string;
+    };
+    expect(payload.packageDir).toContain("codemem-skill-portable-1.0.3");
+    expect(payload.skillDir).toContain(join("codemem-skill-portable-1.0.3", "codemem"));
+    expect(payload.archiveFile).toContain("codemem-skill-portable-1.0.3.tgz");
+    expect(existsSync(payload.archiveFile)).toBe(true);
+    expect(existsSync(payload.digestFile)).toBe(true);
   }, 20000);
 });

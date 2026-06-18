@@ -46,44 +46,44 @@ flowchart TD
 - 对架构重构、策略/工厂抽取、MQ 消费分发改造等可复用工程约定保持敏感。
 - 只有项目身份不确定、可能覆盖重要内容、规范冲突无法自动决策时才打断确认。
 
-## 推荐分享方式：导出可直接使用的 skill 包
+## 推荐分享方式：导出解压即用的 skill 包
 
-如果你希望把本机生成的 `codemem` skill 直接给别人使用，推荐先在源码项目中导出 agent 安装包：
+如果你希望把本机生成的 `codemem` skill 直接给别人使用，推荐导出 portable skill 包。这个包不需要执行安装脚本，也不会安装 shell 全局命令：
 
 ```bash
-bun run core/src/cli/agent.ts --root . export --agent all --version 0.1.0 --lang zh
+bun run core/src/cli/agent.ts --root . portable --version 0.1.0 --lang zh
 ```
 
 导出后把这两个文件发给对方：
 
-- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-agent-kit-0.1.0.tgz`
-- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-agent-kit-0.1.0.tgz.sha256`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-skill-portable-0.1.0.tgz`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-skill-portable-0.1.0.tgz.sha256`
 
-这个 `.tgz` 是自包含安装包，包含 skill 文档、JavaScript runtime、编译后的 runtime 二进制、模板和安装器。使用方不需要拿到 `codemem` 源码仓库。
+这个 `.tgz` 是自包含 skill 包，包含 skill 文档、JavaScript runtime、模板和兼容 runtime。使用方不需要拿到 `codemem` 源码仓库。
 
 对方拿到包后，先校验摘要：
 
 ```bash
-shasum -a 256 codemem-agent-kit-0.1.0.tgz
-cat codemem-agent-kit-0.1.0.tgz.sha256
+shasum -a 256 codemem-skill-portable-0.1.0.tgz
+cat codemem-skill-portable-0.1.0.tgz.sha256
 ```
 
-然后解压并安装到目标项目：
+然后直接解压到全局 skill 目录：
 
 ```bash
-tar -xzf codemem-agent-kit-0.1.0.tgz
-cd codemem-agent-kit-0.1.0
-node install.mjs --agent cursor --target-dir /path/to/project
+mkdir -p ~/.codex/skills
+tar -xzf codemem-skill-portable-0.1.0.tgz -C ~/.codex/skills
 ```
 
-也可以安装给 Codex 或 Claude Code：
+解压后应得到：
 
-```bash
-node install.mjs --agent codex --target-dir /path/to/project
-node install.mjs --agent claude-code --target-dir /path/to/project
+```text
+~/.codex/skills/codemem/SKILL.md
+~/.codex/skills/codemem/scripts/codemem.mjs
+~/.codex/skills/codemem/templates/
 ```
 
-`install.mjs` 会在对方机器上按实际路径写入 `SKILL.md` 或 `codemem.md`，不会使用你的本机路径。
+Codex 和 Cursor 都可以直接读取这个 skill。Claude Code 的 `/codemem` 项目命令需要写入 `.claude/commands/codemem.md`，这种场景继续使用带 `install.mjs` 的 agent 安装包。
 
 ## 源码项目内安装方式
 

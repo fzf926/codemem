@@ -80,7 +80,27 @@ bun run core/src/cli/upgrade.ts --root . --agent cursor --target-dir <project_di
 
 ## 打包给别人使用
 
-如果你想把本机生成的 skill 直接发给别人使用，导出 agent 安装包即可。导出的 `.tgz` 是自包含的，对方不需要拿到 `codemem` 源码仓库：
+如果你想把本机生成的 skill 直接发给别人使用，推荐导出解压即用的 portable skill 包。这个包不需要执行安装脚本，也不会安装 shell 全局命令：
+
+```bash
+bun run core/src/cli/agent.ts --root . portable --version 0.1.0 --lang zh
+```
+
+把生成的这两个文件发给对方：
+
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-skill-portable-0.1.0.tgz`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-skill-portable-0.1.0.tgz.sha256`
+
+对方只需要解压到本机全局 skill 目录：
+
+```bash
+mkdir -p ~/.codex/skills
+tar -xzf codemem-skill-portable-0.1.0.tgz -C ~/.codex/skills
+```
+
+解压后应得到 `~/.codex/skills/codemem/`，Codex 和 Cursor 都可以直接读取这个 skill。
+
+如果你还需要 Claude Code 项目命令，或者希望自动写入不同 agent 的集成文件，也可以导出带 `install.mjs` 的 agent 安装包。导出的 `.tgz` 是自包含的，对方不需要拿到 `codemem` 源码仓库：
 
 ```bash
 bun run core/src/cli/agent.ts --root . export --agent all --version 0.1.0 --lang zh

@@ -473,7 +473,45 @@ cat /path/to/shared-standard-<project>-<version>.tgz.sha256
 
 如果两个 SHA256 一致，说明压缩包未被修改。
 
-## 10. 导出可分享 agent 安装包
+## 10. 导出解压即用的 portable skill 包
+
+如果你只需要给 Codex 或 Cursor 使用，推荐导出 portable skill 包。它不包含 `install.mjs`，不需要执行安装脚本，也不会安装 shell 全局命令；对方解压到 `~/.codex/skills/` 后就能直接使用。
+
+```bash
+bun run core/src/cli/agent.ts --root . portable --target-dir /path/to/output --version 1.0.0
+```
+
+当前项目的默认导出路径可以直接使用：
+
+```bash
+bun run core/src/cli/agent.ts --root . portable --version 0.1.0 --lang zh
+```
+
+对应产物示例：
+
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-skill-portable-0.1.0/`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-skill-portable-0.1.0.tgz`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-skill-portable-0.1.0.tgz.sha256`
+
+使用方拿到 `.tgz` 后执行：
+
+```bash
+mkdir -p ~/.codex/skills
+tar -xzf codemem-skill-portable-0.1.0.tgz -C ~/.codex/skills
+```
+
+解压后应得到：
+
+```text
+~/.codex/skills/codemem/SKILL.md
+~/.codex/skills/codemem/scripts/codemem.mjs
+~/.codex/skills/codemem/templates/
+~/.codex/skills/codemem/runtime/bin/
+```
+
+这个方式适合 Codex/Cursor。Claude Code 的 `/codemem` 项目命令仍然需要写入 `.claude/commands/codemem.md`，更适合使用下面的 agent 安装包或源码安装方式。
+
+## 11. 导出可分享 agent 安装包
 
 如果你希望把 agent 集成能力整体打包给别人使用，推荐用这个流程。导出的包是自包含的，使用方不需要拿到 `codemem` 源码仓库。
 
@@ -556,7 +594,7 @@ node install.mjs --agent cursor --target-dir /path/to/target-project --skill-dir
 - Claude Code 默认会在目标项目写入 `.claude/commands/codemem.md`，并共用 `~/.codex/skills/codemem/` 下的 runtime。
 - 目标业务项目不需要复制 runtime 或模板；后续由 agent 在项目内生成规范入口文档，内部状态统一写入 `~/.codemem/projects/<project_state_key>/`。
 
-## 11. 推荐给外部使用方的最小交付说明
+## 12. 推荐给外部使用方的最小交付说明
 
 如果你要把这套能力交给别的团队，最小可以附上这段说明：
 
@@ -564,11 +602,12 @@ node install.mjs --agent cursor --target-dir /path/to/target-project --skill-dir
 1. 安装要求：Node.js >= 18
 2. 你会收到一个 .tgz 安装包和一个 .sha256 校验文件
 3. 校验 .tgz 的 SHA256 摘要
-4. 解压后进入包目录，执行 node install.mjs --agent cursor --target-dir <你的项目目录>
-5. 安装完成后，在 Cursor/Codex/Claude Code 中直接使用 codemem skill
+4. 如果拿到的是 portable 包：执行 mkdir -p ~/.codex/skills && tar -xzf codemem-skill-portable-<version>.tgz -C ~/.codex/skills
+5. 如果拿到的是 agent 安装包：解压后进入包目录，执行 node install.mjs --agent cursor --target-dir <你的项目目录>
+6. 安装完成后，在 Cursor/Codex/Claude Code 中直接使用 codemem skill
 ```
 
-## 12. 常见命令速查
+## 13. 常见命令速查
 
 推荐入口：
 

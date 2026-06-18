@@ -206,7 +206,7 @@ codemem projects
 | `--target-dir` | Optional | `current working directory` | - | project directory to receive runtime files, or export output directory |
 | `--skill-dir` | Optional | - | - | override the integration install directory for the selected agent; otherwise auto-detect common existing locations first and confirm non-default choices in interactive terminals |
 | `--version` | Optional | `0.1.0` | - | exported package version |
-| `--package-name` | Optional | `codemem-agent-kit` | - | exported package base name |
+| `--package-name` | Optional | `codemem-agent-kit` | - | exported package base name; portable defaults to codemem-skill-portable |
 | `--lang` | Optional | `zh` | `zh` | generated prompt and guidance language; only zh is supported |
 | `--json` | Optional | `false` | `true`, `false` | print machine-readable output for install, detect, or export |
 

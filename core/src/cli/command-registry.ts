@@ -249,6 +249,7 @@ export const commandSpecs: CommandSpec[] = [
       "codemem agent install --agent codex --target-dir <project_dir>",
       "codemem agent detect --agent codex --target-dir <project_dir>",
       "codemem agent export --agent all --target-dir <output_dir>",
+      "codemem agent portable --target-dir <output_dir>",
     ],
     args: [
       {
@@ -272,7 +273,7 @@ export const commandSpecs: CommandSpec[] = [
       },
       {
         name: "--package-name",
-        description: "exported package base name",
+        description: "exported package base name; portable defaults to codemem-skill-portable",
         defaultValue: "codemem-agent-kit",
       },
       {
@@ -297,6 +298,7 @@ export const commandSpecs: CommandSpec[] = [
       "Claude Code: auto-detect existing <project>/.claude/commands/ or ~/.claude/commands/ before falling back",
       "~/.codemem/projects/<project_state_key>/_system/packages/agents/<package-name>-<version>/",
       "~/.codemem/projects/<project_state_key>/_system/packages/agents/<package-name>-<version>.tgz",
+      "portable archive extracts directly to ~/.codex/skills/codemem/",
     ],
   },
   {

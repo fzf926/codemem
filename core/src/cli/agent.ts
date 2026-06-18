@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { detectAgentInstallations, exportAgentPackage, installAgent, type AgentId } from "../agent/service";
+import { detectAgentInstallations, exportAgentPackage, exportPortableSkillPackage, installAgent, type AgentId } from "../agent/service";
 import { parseArgs } from "../shared/args";
 
 function renderHelp(): string {
@@ -14,6 +14,7 @@ function renderHelp(): string {
     "  codemem agent install [--agent codex|cursor|claude-code] [--target-dir <project_dir>] [--skill-dir <dir>] [--lang zh]",
     "  codemem agent detect [--agent codex|cursor|claude-code] [--target-dir <project_dir>] [--skill-dir <dir>]",
     "  codemem agent export [--agent codex|cursor|claude-code|all] [--target-dir <output_dir>] [--version <version>] [--lang zh]",
+    "  codemem agent portable [--target-dir <output_dir>] [--version <version>] [--lang zh]",
     "",
     "Notes:",
     "",
@@ -89,7 +90,7 @@ async function main(argv = process.argv): Promise<void> {
   const lang = args.get("lang") || "zh";
   const json = args.get("json") === "true";
 
-  if (!subcommand || !["install", "detect", "export"].includes(subcommand)) {
+  if (!subcommand || !["install", "detect", "export", "portable"].includes(subcommand)) {
     throw new Error(`Unknown or missing subcommand.\n\n${renderHelp()}`);
   }
 
@@ -138,6 +139,29 @@ async function main(argv = process.argv): Promise<void> {
       console.log(`  runtime: ${item.runtimeBinDir}`);
       console.log(`  templates: ${item.templatesDir}`);
     }
+    return;
+  }
+
+  if (subcommand === "portable") {
+    const result = exportPortableSkillPackage({
+      rootDir,
+      targetDir: args.get("target-dir") ? resolve(args.get("target-dir")!) : undefined,
+      version: args.get("version") || "0.1.0",
+      lang,
+      packageName: args.get("package-name") || "codemem-skill-portable",
+    });
+
+    if (json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
+    console.log(`Exported portable codemem skill package`);
+    console.log(`Package directory: ${result.packageDir}`);
+    console.log(`Skill directory: ${result.skillDir}`);
+    console.log(`Package archive: ${result.archiveFile}`);
+    console.log(`Archive digest: ${result.digestFile}`);
+    console.log(`Use: mkdir -p ~/.codex/skills && tar -xzf "${result.archiveFile}" -C ~/.codex/skills`);
     return;
   }
 

@@ -57,6 +57,21 @@ export interface ExportAgentPackageResult {
   digestFile: string;
 }
 
+export interface ExportPortableSkillPackageOptions {
+  rootDir: string;
+  targetDir?: string;
+  version: string;
+  lang: string;
+  packageName?: string;
+}
+
+export interface ExportPortableSkillPackageResult {
+  packageDir: string;
+  skillDir: string;
+  archiveFile: string;
+  digestFile: string;
+}
+
 export interface AgentDetectionResult {
   agent: AgentId;
   targetDir: string;
@@ -975,6 +990,72 @@ export function exportAgentPackage(options: ExportAgentPackageOptions): ExportAg
   return {
     agent: options.agent || "all",
     packageDir,
+    archiveFile,
+    digestFile,
+  };
+}
+
+export function exportPortableSkillPackage(options: ExportPortableSkillPackageOptions): ExportPortableSkillPackageResult {
+  const rootDir = resolve(options.rootDir);
+  const version = options.version || loadVersion(rootDir);
+  const packageName = options.packageName || "codemem-skill-portable";
+  const packageDirRoot = resolve(options.targetDir || getAgentPackagesDir(rootDir));
+  const packageDir = join(packageDirRoot, `${packageName}-${version}`);
+  const skillDir = join(packageDir, AGENT_SKILL_NAME);
+  const archiveFile = join(packageDirRoot, `${packageName}-${version}.tgz`);
+  const digestFile = `${archiveFile}.sha256`;
+  const portableSkillDir = "$HOME/.codex/skills/codemem";
+  const portableRuntimeBinDir = "$HOME/.codex/skills/codemem/runtime/bin";
+  const codexSpec = getAgentSpec("codex");
+
+  rmSync(packageDir, { recursive: true, force: true });
+  rmSync(archiveFile, { force: true });
+  rmSync(digestFile, { force: true });
+  mkdirSync(skillDir, { recursive: true });
+
+  installSharedSkillBundle(rootDir, skillDir);
+  writeFileSync(
+    join(skillDir, "SKILL.md"),
+    `${codexSpec.renderIntegration({
+      runtimeBinDir: portableRuntimeBinDir,
+      targetDir: "$PWD",
+      skillDir: portableSkillDir,
+      lang: options.lang,
+    })}\n`,
+  );
+
+  const agentsDir = join(skillDir, "agents");
+  mkdirSync(agentsDir, { recursive: true });
+  writeFileSync(join(agentsDir, "openai.yaml"), renderCodexOpenAiYaml(options.lang));
+  writeFileSync(join(skillDir, "meta.json"), renderCursorMetaJson(rootDir, options.lang));
+  writeFileSync(join(skillDir, "README-portable.txt"), [
+    `Package: ${packageName}@${version}`,
+    "",
+    "解压即用安装方式：",
+    "",
+    "  mkdir -p ~/.codex/skills",
+    `  tar -xzf ${basename(archiveFile)} -C ~/.codex/skills`,
+    "",
+    "解压后目录应为：",
+    "",
+    "  ~/.codex/skills/codemem/SKILL.md",
+    "  ~/.codex/skills/codemem/scripts/codemem.mjs",
+    "  ~/.codex/skills/codemem/templates/",
+    "  ~/.codex/skills/codemem/runtime/bin/",
+    "",
+    "不需要执行 install.mjs，也不会安装 shell 全局命令。",
+    "Codex 和 Cursor 都可以读取这个全局 skill。",
+    "",
+  ].join("\n"));
+
+  mkdirSync(packageDirRoot, { recursive: true });
+  runTar(["-czf", archiveFile, "-C", packageDir, AGENT_SKILL_NAME]);
+  const digest = sha256File(archiveFile);
+  writeFileSync(digestFile, `${digest}  ${basename(archiveFile)}\n`);
+
+  return {
+    packageDir,
+    skillDir,
     archiveFile,
     digestFile,
   };
