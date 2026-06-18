@@ -141,6 +141,8 @@ bun run core/src/cli/uninstall.ts --delete-project-data true --target-dir <proje
 
 如果你要安装到更多项目，推荐直接阅读 [docs/INSTALL.md](docs/INSTALL.md)。
 
+如果你希望把安装任务直接交给 AI，让它自动判断安装方式并执行，请把 [docs/AI_INSTALL.md](docs/AI_INSTALL.md) 发给对应 agent。
+
 ## 安装策略
 
 - 首次安装会返回 `installed`。

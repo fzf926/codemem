@@ -39,6 +39,8 @@ curl -fsSL https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install
 
 这条命令会把当前目录作为业务项目，自动临时 clone `codemem` 源码、构建 runtime、安装 agent skill，然后删除临时源码目录。它不会安装 shell 全局 `codemem` 命令，也不会写入 `~/.local/bin`。同一台机器上，Cursor/Codex 的 skill 安装一次后可供所有项目使用。
 
+如果对方不想自己判断怎么安装，可以直接把 [AI_INSTALL.md](./AI_INSTALL.md) 交给正在使用的 AI agent。这个文档会让 AI 自动选择 portable 包、agent 安装包、GitHub 远程脚本或本地源码安装，并在安装后执行验证。
+
 如果对方已经拿到源码仓库，也可以在业务项目目录执行源码脚本：
 
 ```bash

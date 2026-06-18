@@ -11,6 +11,7 @@ describe("generated readme docs", () => {
     expect(readme).toContain("scripts/install.sh");
     expect(readme).toContain("docs/COMMANDS.md");
     expect(readme).toContain("docs/INSTALL.md");
+    expect(readme).toContain("docs/AI_INSTALL.md");
   });
 
   test("render command reference entries", () => {
