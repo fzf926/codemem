@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { getGlobalStandardFile, getLogsDir, getProjectMarkerFile, getStandardsConflictsFile } from "../core/src/shared/paths";
 
 const runtimeScript = join(process.cwd(), "skills", "codemem", "scripts", "codemem.mjs");
 
@@ -24,6 +25,8 @@ describe("skill project runtime", () => {
 
   test("initializes, captures, and builds standards without global codemem binaries", () => {
     const rootDir = mkdtempSync(join(tmpdir(), "codemem-skill-runtime-"));
+    const previousGlobalDir = process.env.CODEMEM_GLOBAL_DIR;
+    process.env.CODEMEM_GLOBAL_DIR = join(rootDir, ".global-codemem");
 
     try {
       const init = runRuntime([
@@ -40,8 +43,10 @@ describe("skill project runtime", () => {
 
       expect(init.status).toBe(0);
       expect(init.stdout).toContain("Initialized project 'runtime-project'");
-      expect(existsSync(join(rootDir, ".codemem-project.json"))).toBe(true);
-      expect(existsSync(join(rootDir, ".codemem", "_system", "logs", "standards", "runtime-project.jsonl"))).toBe(true);
+      expect(existsSync(join(rootDir, ".codemem-project.json"))).toBe(false);
+      expect(existsSync(join(rootDir, ".codemem"))).toBe(false);
+      expect(existsSync(getProjectMarkerFile(rootDir))).toBe(true);
+      expect(existsSync(join(getLogsDir(rootDir), "runtime-project.jsonl"))).toBe(true);
       expect(readFileSync(join(rootDir, "AGENTS.md"), "utf8")).toContain("Codemem Standards");
 
       const capture = runRuntime([
@@ -70,7 +75,7 @@ describe("skill project runtime", () => {
 
       expect(capture.status).toBe(0);
       expect(capture.stdout).toContain("Captured standard for 'runtime-project': MQ 消费策略分发");
-      const log = readFileSync(join(rootDir, ".codemem", "_system", "logs", "standards", "runtime-project.jsonl"), "utf8");
+      const log = readFileSync(join(getLogsDir(rootDir), "runtime-project.jsonl"), "utf8");
       expect(log).toContain("MQ 消费策略分发");
 
       const build = runRuntime([
@@ -86,19 +91,26 @@ describe("skill project runtime", () => {
       expect(build.status).toBe(0);
       expect(build.stdout).toContain("Generated:");
       const projectDoc = readFileSync(join(rootDir, "docs", "spec", "project-standard.runtime-project.md"), "utf8");
-      const globalDoc = readFileSync(join(rootDir, ".codemem", "docs", "global", "global-standard.md"), "utf8");
-      const conflictsDoc = readFileSync(join(rootDir, ".codemem", "docs", "reports", "standards-conflicts.md"), "utf8");
+      const globalDoc = readFileSync(getGlobalStandardFile(rootDir), "utf8");
+      const conflictsDoc = readFileSync(getStandardsConflictsFile(rootDir), "utf8");
       expect(projectDoc).toContain("MQ 消费策略分发");
       expect(projectDoc).toContain("按 topic 构建策略工厂");
       expect(globalDoc).toContain("runtime-project");
       expect(conflictsDoc).toContain("# 规范冲突报告");
     } finally {
+      if (previousGlobalDir === undefined) {
+        delete process.env.CODEMEM_GLOBAL_DIR;
+      } else {
+        process.env.CODEMEM_GLOBAL_DIR = previousGlobalDir;
+      }
       rmSync(rootDir, { recursive: true, force: true });
     }
   });
 
   test("writes the project standard to a configured relative path and filename", () => {
     const rootDir = mkdtempSync(join(tmpdir(), "codemem-skill-runtime-doc-path-"));
+    const previousGlobalDir = process.env.CODEMEM_GLOBAL_DIR;
+    process.env.CODEMEM_GLOBAL_DIR = join(rootDir, ".global-codemem");
 
     try {
       const init = runRuntime([
@@ -116,7 +128,8 @@ describe("skill project runtime", () => {
       ], rootDir);
 
       expect(init.status).toBe(0);
-      expect(readFileSync(join(rootDir, ".codemem-project.json"), "utf8")).toContain("\"projectDocPath\": \"docs/engineering/codemem-project.md\"");
+      expect(readFileSync(getProjectMarkerFile(rootDir), "utf8")).toContain("\"projectDocPath\": \"docs/engineering/codemem-project.md\"");
+      expect(existsSync(join(rootDir, ".codemem-project.json"))).toBe(false);
       expect(readFileSync(join(rootDir, "AGENTS.md"), "utf8")).toContain("docs/engineering/codemem-project.md");
       expect(readFileSync(join(rootDir, ".cursor", "rules", "codemem-standards.mdc"), "utf8")).toContain("docs/engineering/codemem-project.md");
 
@@ -161,6 +174,11 @@ describe("skill project runtime", () => {
       expect(projectDoc).toContain("自定义输出路径");
       expect(existsSync(join(rootDir, "docs", "spec", "project-standard.runtime-doc-path.md"))).toBe(false);
     } finally {
+      if (previousGlobalDir === undefined) {
+        delete process.env.CODEMEM_GLOBAL_DIR;
+      } else {
+        process.env.CODEMEM_GLOBAL_DIR = previousGlobalDir;
+      }
       rmSync(rootDir, { recursive: true, force: true });
     }
   });

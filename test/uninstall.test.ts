@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { uninstallCodemem } from "../core/src/uninstall/service";
+import { getProjectStateKey } from "../core/src/shared/paths";
 
 function makeRoot(prefix: string): string {
   return mkdtempSync(join(tmpdir(), prefix));
@@ -13,6 +14,7 @@ function seedInstall(root: string) {
   const installDir = join(homeDir, ".codemem", "source");
   const binDir = join(homeDir, ".local", "bin");
   const targetDir = join(root, "project");
+  const projectStateDir = join(homeDir, ".codemem", "projects", getProjectStateKey(targetDir));
   const profileFile = join(homeDir, ".zshrc");
 
   mkdirSync(join(installDir, "bin"), { recursive: true });
@@ -22,12 +24,14 @@ function seedInstall(root: string) {
   mkdirSync(join(targetDir, ".codemem", "docs"), { recursive: true });
   mkdirSync(join(targetDir, ".cursor", "rules"), { recursive: true });
   mkdirSync(join(homeDir, ".codemem", "_system", "registry"), { recursive: true });
+  mkdirSync(join(projectStateDir, "_system", "logs", "standards"), { recursive: true });
 
   writeFileSync(join(installDir, "bin", "codemem"), "#!/usr/bin/env bash\n");
   writeFileSync(join(binDir, "codemem"), `#!/usr/bin/env bash\nexec "${installDir}/bin/codemem" "$@"\n`);
   writeFileSync(join(homeDir, ".codex", "skills", "codemem", "SKILL.md"), "codemem skill\n");
   writeFileSync(join(homeDir, ".claude", "commands", "codemem.md"), "codemem command\n");
   writeFileSync(join(targetDir, ".codemem", "docs", "standard.md"), "standard\n");
+  writeFileSync(join(projectStateDir, "_system", "logs", "standards", "demo.jsonl"), "{}\n");
   writeFileSync(join(targetDir, ".cursor", "rules", "codemem-standards.mdc"), "codemem cursor rule\n");
   writeFileSync(join(targetDir, ".codemem-project.json"), "{\n  \"tool\": \"codemem\"\n}\n");
   writeFileSync(join(targetDir, ".gitignore"), "node_modules\n.codemem/\ndist\n");
@@ -72,7 +76,7 @@ function seedInstall(root: string) {
   ].join("\n"));
   writeFileSync(profileFile, `export PATH="/usr/local/bin:$PATH"\n\n# codemem global command\nexport PATH="${binDir}:$PATH"\n`);
 
-  return { homeDir, installDir, binDir, targetDir, profileFile };
+  return { homeDir, installDir, binDir, targetDir, projectStateDir, profileFile };
 }
 
 describe("uninstallCodemem", () => {
@@ -88,11 +92,13 @@ describe("uninstallCodemem", () => {
       expect(existsSync(join(paths.homeDir, ".claude", "commands", "codemem.md"))).toBe(false);
       expect(existsSync(paths.installDir)).toBe(false);
       expect(existsSync(join(paths.homeDir, ".codemem", "_system", "install.json"))).toBe(false);
+      expect(existsSync(paths.projectStateDir)).toBe(true);
       expect(existsSync(join(paths.targetDir, ".codemem"))).toBe(true);
       expect(existsSync(join(paths.targetDir, ".cursor", "rules", "codemem-standards.mdc"))).toBe(true);
       expect(existsSync(join(paths.targetDir, ".codemem-project.json"))).toBe(true);
       expect(readFileSync(join(paths.targetDir, "AGENTS.md"), "utf8")).toContain("codemem:managed:start");
       expect(readFileSync(join(paths.targetDir, ".gitignore"), "utf8")).toContain(".codemem/");
+      expect(result.kept).toContain(paths.projectStateDir);
       expect(result.kept).toContain(join(paths.targetDir, ".codemem"));
       expect(readFileSync(paths.profileFile, "utf8")).not.toContain("# codemem global command");
     } finally {
@@ -107,6 +113,7 @@ describe("uninstallCodemem", () => {
 
       uninstallCodemem({ ...paths, deleteProjectData: true });
 
+      expect(existsSync(paths.projectStateDir)).toBe(false);
       expect(existsSync(join(paths.targetDir, ".codemem"))).toBe(false);
       expect(existsSync(join(paths.targetDir, ".cursor", "rules", "codemem-standards.mdc"))).toBe(false);
       expect(existsSync(join(paths.targetDir, ".codemem-project.json"))).toBe(false);
@@ -132,6 +139,7 @@ describe("uninstallCodemem", () => {
       expect(existsSync(join(paths.homeDir, ".codex", "skills", "codemem"))).toBe(true);
       expect(existsSync(paths.installDir)).toBe(true);
       expect(existsSync(join(paths.homeDir, ".codemem", "_system", "install.json"))).toBe(true);
+      expect(existsSync(paths.projectStateDir)).toBe(true);
       expect(existsSync(join(paths.targetDir, ".codemem"))).toBe(true);
       expect(existsSync(join(paths.targetDir, ".cursor", "rules", "codemem-standards.mdc"))).toBe(true);
       expect(existsSync(join(paths.targetDir, ".codemem-project.json"))).toBe(true);

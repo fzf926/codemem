@@ -7,6 +7,7 @@ import { installPackage } from "../core/src/installer/service";
 import { buildPackage } from "../core/src/packaging/service";
 import { initProject, captureRule } from "../core/src/standards/service";
 import { listProjects } from "../core/src/registry/service";
+import { getGlobalStandardFile, getLogsDir, getMetaDir, getProjectMarkerFile, getStandardsConflictsFile, getStandardsPackagesDir, getStateDir } from "../core/src/shared/paths";
 
 function makeRoot(prefix: string): string {
   return mkdtempSync(join(tmpdir(), prefix));
@@ -44,8 +45,8 @@ function captureDocsRule(rootDir: string, project: string): void {
     rootDir,
     project,
     type: "docs",
-    title: "规范目录",
-    rule: "所有规范输出统一落在 .codemem 目录",
+    title: "规范状态目录",
+    rule: "项目只保留规范入口文档，内部状态统一落在 ~/.codemem/projects 对应项目目录。",
     priority: "P1",
     status: "active",
     scope: "project",
@@ -65,10 +66,10 @@ function buildSourcePackage(rootDir: string, version: string): { artifactDir: st
 
   expect(existsSync(initialized.agentsFile)).toBe(true);
   expect(existsSync(initialized.cursorRuleFile)).toBe(true);
-  expect(existsSync(initialized.gitignoreFile)).toBe(true);
+  expect(existsSync(initialized.gitignoreFile)).toBe(false);
   expect(existsSync(initialized.projectMarkerFile)).toBe(true);
   expect(existsSync(initialized.globalRegistryFile)).toBe(true);
-  expect(readFileSync(initialized.agentsFile, "utf8")).toContain(".codemem/docs/global/global-standard.md");
+  expect(readFileSync(initialized.agentsFile, "utf8")).toContain("global-standard.md");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("Default to finishing initialization, standards capture, and document regeneration in one pass.");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("Do not end with optional follow-up offers for obvious low-risk work.");
   expect(readFileSync(initialized.agentsFile, "utf8")).toContain("Aim to capture at least one evidenced rule per applicable checklist item");
@@ -95,7 +96,8 @@ function buildSourcePackage(rootDir: string, version: string): { artifactDir: st
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("Do not treat architecture or refactor-derived standards capture as an optional follow-up step");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("standardizing error handling, validation, logging, idempotency, retry, timeout, or fallback behavior");
   expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("reorganizing project structure, module boundaries, build layout, or deployment integration");
-  expect(readFileSync(initialized.gitignoreFile, "utf8")).toContain(".codemem/");
+  expect(existsSync(join(rootDir, ".codemem"))).toBe(false);
+  expect(existsSync(join(rootDir, ".codemem-project.json"))).toBe(false);
 
   captureDocsRule(rootDir, "source-project");
 
@@ -156,12 +158,15 @@ describe("package and install flow", () => {
       expect(result.compatibility.requiredCodememVersion).toBe(">=0.1.0");
       expect(result.compatibility.requiredNodeVersion).toBe(">=18");
 
-      expect(existsSync(join(targetRoot, ".codemem", "installed-standard.json"))).toBe(true);
-      expect(existsSync(join(targetRoot, ".codemem-project.json"))).toBe(true);
+      const targetStateDir = withGlobalDir(sourceRoot, () => getStateDir(targetRoot));
+      expect(existsSync(join(targetStateDir, "installed-standard.json"))).toBe(true);
+      expect(withGlobalDir(sourceRoot, () => existsSync(getProjectMarkerFile(targetRoot)))).toBe(true);
+      expect(existsSync(join(targetRoot, ".codemem"))).toBe(false);
+      expect(existsSync(join(targetRoot, ".codemem-project.json"))).toBe(false);
       expect(existsSync(join(sourceRoot, ".global-codemem", "_system", "registry", "projects-registry.json"))).toBe(true);
 
       const installed = JSON.parse(
-        readFileSync(join(targetRoot, ".codemem", "installed-standard.json"), "utf8"),
+        readFileSync(join(targetStateDir, "installed-standard.json"), "utf8"),
       ) as { packageVersion: string; sourceProject: string };
 
       expect(installed.packageVersion).toBe("9.9.9");
@@ -242,7 +247,7 @@ describe("package and install flow", () => {
       expect(secondResult.action).toBe("upgraded");
 
       const installed = JSON.parse(
-        readFileSync(join(targetRoot, ".codemem", "installed-standard.json"), "utf8"),
+        readFileSync(join(getStateDir(targetRoot), "installed-standard.json"), "utf8"),
       ) as { packageVersion: string };
 
       expect(installed.packageVersion).toBe("1.1.0");
@@ -316,7 +321,7 @@ describe("package and install flow", () => {
       expect(downgradeResult.action).toBe("downgraded");
 
       const installed = JSON.parse(
-        readFileSync(join(targetRoot, ".codemem", "installed-standard.json"), "utf8"),
+        readFileSync(join(getStateDir(targetRoot), "installed-standard.json"), "utf8"),
       ) as { packageVersion: string };
 
       expect(installed.packageVersion).toBe("2.5.0");
@@ -480,6 +485,10 @@ describe("package and install flow", () => {
         {
           cwd: process.cwd(),
           encoding: "utf8",
+          env: {
+            ...process.env,
+            CODEMEM_GLOBAL_DIR: join(sourceRoot, ".global-codemem"),
+          },
         },
       );
 
@@ -522,6 +531,10 @@ describe("package and install flow", () => {
         {
           cwd: process.cwd(),
           encoding: "utf8",
+          env: {
+            ...process.env,
+            CODEMEM_GLOBAL_DIR: join(sourceRoot, ".global-codemem"),
+          },
         },
       );
 
@@ -540,21 +553,23 @@ describe("package and install flow", () => {
     }
   });
 
-  test("writes generated standards docs into docs and internal state into _system", () => {
+  test("writes project docs in the project and internal state under the home codemem project state", () => {
     const sourceRoot = makeRoot("codemem-structure-source-");
 
     try {
       prepareRoot(sourceRoot);
       buildSourcePackage(sourceRoot, "1.0.0");
 
-      expect(existsSync(join(sourceRoot, ".codemem", "docs", "global", "global-standard.md"))).toBe(true);
+      expect(existsSync(getGlobalStandardFile(sourceRoot))).toBe(true);
       expect(existsSync(join(sourceRoot, "docs", "spec", "project-standard.source-project.md"))).toBe(true);
-      expect(existsSync(join(sourceRoot, ".codemem", "docs", "reports", "standards-conflicts.md"))).toBe(true);
-      expect(existsSync(join(sourceRoot, ".codemem", "_system", "logs", "standards", "source-project.jsonl"))).toBe(true);
-      expect(existsSync(join(sourceRoot, ".codemem", "_system", "meta", "standards", "source-project.env"))).toBe(true);
+      expect(existsSync(getStandardsConflictsFile(sourceRoot))).toBe(true);
+      expect(existsSync(join(getLogsDir(sourceRoot), "source-project.jsonl"))).toBe(true);
+      expect(existsSync(join(getMetaDir(sourceRoot), "source-project.env"))).toBe(true);
       expect(existsSync(join(sourceRoot, ".global-codemem", "_system", "registry", "projects-registry.json"))).toBe(true);
-      expect(existsSync(join(sourceRoot, ".codemem-project.json"))).toBe(true);
-      expect(existsSync(join(sourceRoot, ".codemem", "_system", "packages", "standards"))).toBe(true);
+      expect(existsSync(getProjectMarkerFile(sourceRoot))).toBe(true);
+      expect(existsSync(join(sourceRoot, ".codemem"))).toBe(false);
+      expect(existsSync(join(sourceRoot, ".codemem-project.json"))).toBe(false);
+      expect(existsSync(getStandardsPackagesDir(sourceRoot))).toBe(true);
     } finally {
       rmSync(sourceRoot, { recursive: true, force: true });
     }
@@ -603,7 +618,7 @@ describe("project init guidance", () => {
       expect(existsSync(join(root, "docs", "spec", "project-standard.custom-doc-project.md"))).toBe(false);
       expect(readFileSync(initialized.agentsFile, "utf8")).toContain("docs/standards/current-project.md");
       expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("docs/standards/current-project.md");
-      expect(readFileSync(join(root, ".codemem-project.json"), "utf8")).toContain("\"projectDocPath\": \"docs/standards/current-project.md\"");
+      expect(readFileSync(getProjectMarkerFile(root), "utf8")).toContain("\"projectDocPath\": \"docs/standards/current-project.md\"");
       expect(outputs.artifactDir).toContain("shared-standard-custom-doc-project");
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -636,7 +651,7 @@ describe("project init guidance", () => {
     }
   });
 
-  test("adds .codemem to .gitignore only once", () => {
+  test("does not create project .codemem or .gitignore during init", () => {
     const root = makeRoot("codemem-gitignore-");
     setGlobalDir(root);
     prepareRoot(root);
@@ -654,11 +669,11 @@ describe("project init guidance", () => {
       projectPath: root,
     });
 
-    const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
-    expect(gitignore.split(/\r?\n/).filter((line) => line.trim() === ".codemem/")).toHaveLength(1);
+    expect(existsSync(join(root, ".codemem"))).toBe(false);
+    expect(existsSync(join(root, ".gitignore"))).toBe(false);
   });
 
-  test("preserves existing .gitignore entries", () => {
+  test("preserves existing .gitignore entries without adding codemem state ignores", () => {
     const root = makeRoot("codemem-existing-gitignore-");
     setGlobalDir(root);
     prepareRoot(root);
@@ -673,6 +688,6 @@ describe("project init guidance", () => {
 
     const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
     expect(gitignore).toContain("node_modules");
-    expect(gitignore).toContain(".codemem/");
+    expect(gitignore).not.toContain(".codemem/");
   });
 });

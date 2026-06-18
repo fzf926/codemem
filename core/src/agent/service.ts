@@ -266,15 +266,15 @@ function renderSharedWorkflow(input: { scriptFile: string; lang: string }): stri
   const initCommand = `node "${toPosixPath(input.scriptFile)}" init`;
   const captureCommand = `node "${toPosixPath(input.scriptFile)}" capture`;
   const buildCommand = `node "${toPosixPath(input.scriptFile)}" build`;
-  const globalDoc = ".codemem/docs/global/global-standard.md";
+  const globalDoc = "~/.codemem/projects/<project_state_key>/docs/global/global-standard.md";
   const projectDoc = "docs/spec/project-standard.<project_name>.md";
-  const conflictsDoc = ".codemem/docs/reports/standards-conflicts.md";
+  const conflictsDoc = "~/.codemem/projects/<project_state_key>/docs/reports/standards-conflicts.md";
 
   return [
     "当这个工作流被调用时：",
     `1. 优先读取已有规范文档：\`${globalDoc}\`、\`${projectDoc}\`、\`${conflictsDoc}\`（如果存在）。`,
     "2. 把已读取到的规范文档视为当前项目的默认约束，再进行后续判断与执行。",
-    "3. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
+    "3. 先检查当前项目是否已经存在项目规范文档或 codemem 项目状态（状态位于 `~/.codemem/projects/<project_state_key>/`）。",
     "4. 使用当前 skill 安装时自带的 JavaScript runtime 和模板。",
     "5. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
     "6. 默认把请求范围内显然该做的事情一轮做完，不要只完成部分扫描后停下来提供可选下一步。",
@@ -299,15 +299,15 @@ function renderCursorWorkflow(input: {
   const initCommand = `node "${toPosixPath(input.globalScriptFile)}" init --root <project_root> --project <name> --owner <owner> --project-path <project_root> [--project-doc-path <relative_md_path>]`;
   const captureCommand = `node "${toPosixPath(input.globalScriptFile)}" capture --root <project_root> ...`;
   const buildCommand = `node "${toPosixPath(input.globalScriptFile)}" build --root <project_root> --project <name> --lang zh`;
-  const globalDoc = ".codemem/docs/global/global-standard.md";
+  const globalDoc = "~/.codemem/projects/<project_state_key>/docs/global/global-standard.md";
   const projectDoc = "docs/spec/project-standard.<project_name>.md";
-  const conflictsDoc = ".codemem/docs/reports/standards-conflicts.md";
+  const conflictsDoc = "~/.codemem/projects/<project_state_key>/docs/reports/standards-conflicts.md";
 
   return [
     "当这个工作流被调用时：",
     `1. 优先读取已有规范文档：\`${globalDoc}\`、\`${projectDoc}\`、\`${conflictsDoc}\`（如果存在）。`,
     "2. 把已读取到的规范文档视为当前项目的默认约束，再进行后续判断与执行。",
-    "3. 先检查当前项目是否已经存在 `.codemem/` 状态目录。",
+    "3. 先检查当前项目是否已经存在项目规范文档或 codemem 项目状态（状态位于 `~/.codemem/projects/<project_state_key>/`）。",
     "4. 使用当前 skill 自带的 JavaScript runtime 和模板。",
     "5. 如果项目还没有初始化，优先根据当前目录名、仓库名、包名等信息推断项目名称。",
     "6. 默认把请求范围内显然该做的事情一轮做完，不要只完成部分扫描后停下来提供可选下一步。",

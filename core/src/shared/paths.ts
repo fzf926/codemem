@@ -1,9 +1,6 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, isAbsolute, join, normalize, resolve } from "node:path";
-
-export function getStateDir(rootDir: string): string {
-  return join(rootDir, ".codemem");
-}
+import { basename, dirname, isAbsolute, join, normalize, resolve } from "node:path";
 
 export function getGlobalCodememDir(): string {
   const explicit = process.env.CODEMEM_GLOBAL_DIR;
@@ -17,6 +14,25 @@ export function getGlobalCodememDir(): string {
   }
 
   return join(process.env.HOME || "", ".codemem");
+}
+
+function safePathPart(value: string): string {
+  return value.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "project";
+}
+
+export function getProjectStateKey(rootDir: string): string {
+  const resolved = resolve(rootDir);
+  const slug = safePathPart(basename(resolved));
+  const hash = createHash("sha256").update(resolved).digest("hex").slice(0, 12);
+  return `${slug}-${hash}`;
+}
+
+export function getProjectsRootDir(): string {
+  return join(getGlobalCodememDir(), "projects");
+}
+
+export function getStateDir(rootDir: string): string {
+  return join(getProjectsRootDir(), getProjectStateKey(rootDir));
 }
 
 export function getDocsDir(rootDir: string): string {
@@ -84,7 +100,7 @@ export function getPackagesRegistryFile(rootDir: string): string {
 }
 
 export function getProjectMarkerFile(rootDir: string): string {
-  return join(rootDir, ".codemem-project.json");
+  return join(getStateDir(rootDir), "project.json");
 }
 
 export function getGlobalStandardFile(rootDir: string): string {
@@ -129,7 +145,19 @@ export function getProjectStandardRelativePath(rootDir: string, project: string,
       return fromMarker;
     }
   } catch {
-    // Missing or malformed markers fall back to the legacy generated path.
+    // Missing or malformed markers fall back to the legacy project marker and then generated path.
+  }
+
+  try {
+    const legacyMarker = JSON.parse(readFileSync(join(rootDir, ".codemem-project.json"), "utf8")) as { projectDocPath?: unknown };
+    const fromLegacyMarker = typeof legacyMarker.projectDocPath === "string"
+      ? normalizeProjectDocPath(legacyMarker.projectDocPath)
+      : undefined;
+    if (fromLegacyMarker) {
+      return fromLegacyMarker;
+    }
+  } catch {
+    // Missing or malformed legacy markers fall back to the generated path.
   }
 
   return getDefaultProjectStandardRelativePath(project);

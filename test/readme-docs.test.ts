@@ -21,7 +21,7 @@ describe("generated readme docs", () => {
     expect(readme).toContain("upgraded");
     expect(readme).toContain("schema: 1");
     expect(commandsDoc).toContain("## `codemem package`");
-    expect(commandsDoc).toContain(".codemem/_system/packages/standards/<package-id>-<version>.tgz");
+    expect(commandsDoc).toContain("~/.codemem/projects/<project_state_key>/_system/packages/standards/<package-id>-<version>.tgz");
     expect(commandsDoc).toContain("Arguments:");
     expect(commandsDoc).toContain("| `--project` | Required |");
     expect(commandsDoc).toContain("| `--lang` | Optional |");

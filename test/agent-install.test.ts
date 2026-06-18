@@ -38,7 +38,7 @@ describe("agent install and export", () => {
       expect(content).toContain("converting MQ or event consumer branching into topic factories");
       expect(content).toContain("不要求用户显式提到 codemem");
       expect(content).toContain("不要把架构或重构产生的规范记录当成代码改完后的可选后续事项");
-      expect(content).toContain(".codemem/docs/global/global-standard.md");
+      expect(content).toContain("~/.codemem/projects/<project_state_key>/docs/global/global-standard.md");
       expect(content).toContain("docs/spec/project-standard.<project_name>.md");
       expect(content).toContain("优先读取已有规范文档");
       expect(content).toContain("默认把请求范围内显然该做的事情一轮做完");
@@ -88,7 +88,7 @@ describe("agent install and export", () => {
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要求用户显式提到 codemem");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要把架构或重构产生的规范记录当成代码改完后的可选后续事项");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("scripts/codemem.mjs");
-    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain(".codemem/docs/global/global-standard.md");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("~/.codemem/projects/<project_state_key>/docs/global/global-standard.md");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("默认连续完成初始化、规范记录、项目扫描和文档生成");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要把明显低风险的后续工作包装成");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("固定清单中的每个适用维度");
@@ -146,7 +146,7 @@ describe("agent install and export", () => {
     expect(result.agent).toBe("claude-code");
     expect(existsSync(join(targetDir, ".claude", "commands", "codemem.md"))).toBe(true);
     expect(readFileSync(result.integrationPath, "utf8")).toContain("/codemem");
-    expect(readFileSync(result.integrationPath, "utf8")).toContain(".codemem/docs/global/global-standard.md");
+    expect(readFileSync(result.integrationPath, "utf8")).toContain("~/.codemem/projects/<project_state_key>/docs/global/global-standard.md");
     expect(readFileSync(result.integrationPath, "utf8")).toContain("默认把请求范围内显然该做的事情一轮做完");
     expect(readFileSync(result.integrationPath, "utf8")).toContain("如果你要，我可以继续");
     expect(readFileSync(result.integrationPath, "utf8")).toContain("普通项目初始化扫描目标是沉淀 20-40 条");

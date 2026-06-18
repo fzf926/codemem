@@ -286,16 +286,16 @@ function renderAutoCaptureSignals(): string[] {
   ];
 }
 
-function renderAgentsSection(project: string, projectDocPath: string): string {
+function renderAgentsSection(project: string, projectDocPath: string, globalDocPath: string, conflictsDocPath: string): string {
   return [
     AGENTS_MANAGED_START,
     "## Codemem Standards",
     "",
     "Before making code changes, architecture decisions, or workflow recommendations, read these files when they exist:",
     "",
-    "1. `.codemem/docs/global/global-standard.md`",
+    `1. \`${globalDocPath}\``,
     `2. \`${projectDocPath}\``,
-    "3. `.codemem/docs/reports/standards-conflicts.md`",
+    `3. \`${conflictsDocPath}\``,
     "",
     "Behavior rules:",
     "",
@@ -321,7 +321,12 @@ function renderAgentsSection(project: string, projectDocPath: string): string {
 
 function syncAgentsGuide(rootDir: string, project: string, projectDocPath: string): string {
   const agentsFile = join(rootDir, "AGENTS.md");
-  const managedSection = renderAgentsSection(project, projectDocPath);
+  const managedSection = renderAgentsSection(
+    project,
+    projectDocPath,
+    getGlobalStandardFile(rootDir),
+    getStandardsConflictsFile(rootDir),
+  );
 
   if (!existsSync(agentsFile)) {
     writeFileSync(agentsFile, [
@@ -362,9 +367,9 @@ function syncCursorRule(rootDir: string, project: string, projectDocPath: string
     "",
     "Before answering implementation questions or editing code, read these files when they exist:",
     "",
-    "1. `.codemem/docs/global/global-standard.md`",
+    `1. \`${getGlobalStandardFile(rootDir)}\``,
     `2. \`${projectDocPath}\``,
-    "3. `.codemem/docs/reports/standards-conflicts.md`",
+    `3. \`${getStandardsConflictsFile(rootDir)}\``,
     "",
     "Use those documents as the default project conventions before proposing code or workflow changes.",
     "",
@@ -386,24 +391,6 @@ function syncCursorRule(rootDir: string, project: string, projectDocPath: string
 
 function syncGitignore(rootDir: string): string {
   const gitignoreFile = join(rootDir, ".gitignore");
-  const entry = ".codemem/";
-
-  if (!existsSync(gitignoreFile)) {
-    writeFileSync(gitignoreFile, `${entry}\n`);
-    return gitignoreFile;
-  }
-
-  const existing = readFileSync(gitignoreFile, "utf8");
-  const hasEntry = existing
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .some((line) => line === entry || line === ".codemem");
-
-  if (!hasEntry) {
-    const separator = existing.endsWith("\n") || existing.length === 0 ? "" : "\n";
-    writeFileSync(gitignoreFile, `${existing}${separator}${entry}\n`);
-  }
-
   return gitignoreFile;
 }
 

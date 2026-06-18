@@ -2,6 +2,7 @@ import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node
 import { join, resolve } from "node:path";
 import { loadJson } from "../shared/fs";
 import { safeCurrentWorkingDir } from "../shared/cwd";
+import { getProjectStateKey } from "../shared/paths";
 
 export interface UninstallOptions {
   homeDir?: string;
@@ -149,20 +150,23 @@ function safeRemoveShim(path: string, installDir: string, activeSourceDir: strin
   removePath(path, result, dryRun);
 }
 
-function safeRemoveProjectData(targetDir: string, result: UninstallResult, dryRun: boolean): void {
-  const projectDataDir = join(targetDir, ".codemem");
-  if (!existsSync(projectDataDir)) {
-    result.skipped.push(projectDataDir);
-    return;
-  }
+function getProjectStateDir(homeDir: string, targetDir: string): string {
+  return join(resolve(homeDir), ".codemem", "projects", getProjectStateKey(targetDir));
+}
 
-  const stat = lstatSync(projectDataDir);
-  if (!stat.isDirectory()) {
-    result.kept.push(`${projectDataDir} (not a directory)`);
-    return;
-  }
+function safeRemoveProjectData(homeDir: string, targetDir: string, result: UninstallResult, dryRun: boolean): void {
+  const projectStateDir = getProjectStateDir(homeDir, targetDir);
+  removePath(projectStateDir, result, dryRun);
 
-  removePath(projectDataDir, result, dryRun);
+  const legacyProjectDataDir = join(targetDir, ".codemem");
+  if (existsSync(legacyProjectDataDir)) {
+    const stat = lstatSync(legacyProjectDataDir);
+    if (!stat.isDirectory()) {
+      result.kept.push(`${legacyProjectDataDir} (not a directory)`);
+      return;
+    }
+  }
+  removePath(legacyProjectDataDir, result, dryRun);
 }
 
 function removeCursorRule(targetDir: string, result: UninstallResult, dryRun: boolean): void {
@@ -247,8 +251,8 @@ function removeProjectFromGlobalRegistry(installDir: string, targetDir: string, 
   result.removed.push(`${registryFile} entry for ${targetDir}`);
 }
 
-function removeProjectArtifacts(installDir: string, targetDir: string, result: UninstallResult, dryRun: boolean): void {
-  safeRemoveProjectData(targetDir, result, dryRun);
+function removeProjectArtifacts(homeDir: string, installDir: string, targetDir: string, result: UninstallResult, dryRun: boolean): void {
+  safeRemoveProjectData(homeDir, targetDir, result, dryRun);
   removeCursorRule(targetDir, result, dryRun);
   removeAgentsManagedBlock(targetDir, result, dryRun);
   removeGitignoreEntry(targetDir, result, dryRun);
@@ -281,8 +285,9 @@ export function uninstallCodemem(options: UninstallOptions = {}): UninstallResul
   removeCodememProfileBlock(profileFile, result, dryRun);
 
   if (options.deleteProjectData) {
-    removeProjectArtifacts(installDir, targetDir, result, dryRun);
+    removeProjectArtifacts(homeDir, installDir, targetDir, result, dryRun);
   } else {
+    result.kept.push(getProjectStateDir(homeDir, targetDir));
     result.kept.push(join(targetDir, ".codemem"));
     result.kept.push(join(targetDir, ".cursor", "rules", "codemem-standards.mdc"));
     result.kept.push(join(targetDir, "AGENTS.md"));

@@ -42,39 +42,51 @@ function mergeDirectoryIfPresent(sourceDir: string, targetDir: string): void {
 }
 
 export function migrateLegacyStateLayout(rootDir: string): void {
-  const stateDir = getStateDir(rootDir);
-  if (!existsSync(stateDir)) {
+  const legacyStateDir = join(rootDir, ".codemem");
+  if (!existsSync(legacyStateDir)) {
     return;
   }
 
-  mergeDirectoryIfPresent(join(stateDir, ".standards-logs"), getLogsDir(rootDir));
-  mergeDirectoryIfPresent(join(stateDir, ".standards-meta"), getMetaDir(rootDir));
-  mergeDirectoryIfPresent(join(stateDir, "agent-runtime"), join(getRuntimeDir(rootDir), "agent-runtime"));
-  mergeDirectoryIfPresent(join(stateDir, "packages"), getStandardsPackagesDir(rootDir));
+  mergeDirectoryIfPresent(join(legacyStateDir, ".standards-logs"), getLogsDir(rootDir));
+  mergeDirectoryIfPresent(join(legacyStateDir, ".standards-meta"), getMetaDir(rootDir));
+  mergeDirectoryIfPresent(join(legacyStateDir, "_system", "logs", "standards"), getLogsDir(rootDir));
+  mergeDirectoryIfPresent(join(legacyStateDir, "_system", "meta", "standards"), getMetaDir(rootDir));
+  mergeDirectoryIfPresent(join(legacyStateDir, "agent-runtime"), join(getRuntimeDir(rootDir), "agent-runtime"));
+  mergeDirectoryIfPresent(join(legacyStateDir, "_system", "runtime", "agent-runtime"), join(getRuntimeDir(rootDir), "agent-runtime"));
+  mergeDirectoryIfPresent(join(legacyStateDir, "packages"), getStandardsPackagesDir(rootDir));
+  mergeDirectoryIfPresent(join(legacyStateDir, "_system", "packages", "standards"), getStandardsPackagesDir(rootDir));
 
-  moveFileIfPresent(join(stateDir, "projects-registry.json"), getProjectsRegistryFile(rootDir));
-  moveFileIfPresent(join(stateDir, "packages-registry.json"), getPackagesRegistryFile(rootDir));
-  moveFileIfPresent(join(stateDir, "GLOBAL_STANDARD.md"), getGlobalStandardFile(rootDir));
-  moveFileIfPresent(join(stateDir, "docs", "global", "GLOBAL_STANDARD.md"), getGlobalStandardFile(rootDir));
-  moveFileIfPresent(join(stateDir, "STANDARDS_CONFLICTS.md"), getStandardsConflictsFile(rootDir));
-  moveFileIfPresent(join(stateDir, "docs", "reports", "STANDARDS_CONFLICTS.md"), getStandardsConflictsFile(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "projects-registry.json"), getProjectsRegistryFile(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "_system", "registry", "projects-registry.json"), getProjectsRegistryFile(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "packages-registry.json"), getPackagesRegistryFile(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "_system", "registry", "packages-registry.json"), getPackagesRegistryFile(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "GLOBAL_STANDARD.md"), getGlobalStandardFile(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "docs", "global", "GLOBAL_STANDARD.md"), getGlobalStandardFile(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "docs", "global", "global-standard.md"), getGlobalStandardFile(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "STANDARDS_CONFLICTS.md"), getStandardsConflictsFile(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "docs", "reports", "STANDARDS_CONFLICTS.md"), getStandardsConflictsFile(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "docs", "reports", "standards-conflicts.md"), getStandardsConflictsFile(rootDir));
 
-  for (const entry of readdirSync(stateDir)) {
+  for (const entry of readdirSync(legacyStateDir)) {
     if (!entry.startsWith("PROJECT_STANDARD.") || !entry.endsWith(".md")) {
       continue;
     }
     const project = basename(entry, ".md").replace(/^PROJECT_STANDARD\./, "");
-    moveFileIfPresent(join(stateDir, entry), getProjectStandardFile(rootDir, project));
+    moveFileIfPresent(join(legacyStateDir, entry), getProjectStandardFile(rootDir, project));
   }
 
-  const legacyProjectsDir = join(stateDir, "docs", "projects");
+  const legacyProjectsDir = join(legacyStateDir, "docs", "projects");
   if (existsSync(legacyProjectsDir)) {
     for (const entry of readdirSync(legacyProjectsDir)) {
-      if (!entry.startsWith("PROJECT_STANDARD.") || !entry.endsWith(".md")) {
+      if (!entry.endsWith(".md")) {
         continue;
       }
-      const project = basename(entry, ".md").replace(/^PROJECT_STANDARD\./, "");
+      const project = basename(entry, ".md")
+        .replace(/^PROJECT_STANDARD\./, "")
+        .replace(/^project-standard\./, "");
       moveFileIfPresent(join(legacyProjectsDir, entry), getProjectStandardFile(rootDir, project));
     }
   }
+
+  rmSync(legacyStateDir, { recursive: true, force: true });
 }

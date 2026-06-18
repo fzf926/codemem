@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { listProjects, upsertProject } from "../core/src/registry/service";
+import { getProjectMarkerFile } from "../core/src/shared/paths";
 
 describe("registry", () => {
   test("keeps projects with the same name but different paths separate", () => {
@@ -37,8 +38,8 @@ describe("registry", () => {
       const registry = listProjects(root);
       expect(registry.projects.length).toBe(2);
       expect(existsSync(join(root, ".global-codemem", "_system", "registry", "projects-registry.json"))).toBe(true);
-      expect(existsSync(join(root, ".codemem-project.json"))).toBe(true);
-      expect(readFileSync(join(root, ".codemem-project.json"), "utf8")).toContain("\"tool\": \"codemem\"");
+      expect(existsSync(join(root, ".codemem-project.json"))).toBe(false);
+      expect(readFileSync(getProjectMarkerFile(root), "utf8")).toContain("\"tool\": \"codemem\"");
     } finally {
       if (previousGlobalDir === undefined) {
         delete process.env.CODEMEM_GLOBAL_DIR;

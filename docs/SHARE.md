@@ -14,7 +14,7 @@ AI 很擅长写代码，但在长期项目里经常遇到三个问题：
 
 ## 核心能力
 
-- 初始化项目规范空间：在目标项目中生成 `.codemem/` 状态目录、项目标记和规范文档位置。
+- 初始化项目规范空间：目标项目只保留规范入口文档，内部状态、项目标记、日志和共享规范按项目写入 `~/.codemem/projects/<project_state_key>/`。
 - 记录开发规范：通过 `codemem capture` 逐条追加规范，支持分类、优先级、状态、项目级/全局级作用域。
 - 生成规范文档：通过 `codemem build` 输出全局规范、项目规范和冲突报告。
 - 接入代码 agent：通过 `codemem agent install` 安装到 Codex、Cursor 或 Claude Code。
@@ -26,7 +26,7 @@ AI 很擅长写代码，但在长期项目里经常遇到三个问题：
 ```mermaid
 flowchart TD
   A["业务项目"] --> B["codemem init"]
-  B --> C[".codemem 状态与日志"]
+  B --> C["~/.codemem/projects/<project_state_key><br/>状态与日志"]
   D["开发过程中的稳定约定"] --> E["codemem capture"]
   E --> C
   C --> F["codemem build"]
@@ -51,13 +51,13 @@ flowchart TD
 如果你希望把本机生成的 `codemem` skill 直接给别人使用，推荐先在源码项目中导出 agent 安装包：
 
 ```bash
-bun run core/src/cli/agent.ts --root . export --agent all --target-dir .codemem/_system/packages/agents --version 0.1.0 --lang zh
+bun run core/src/cli/agent.ts --root . export --agent all --version 0.1.0 --lang zh
 ```
 
 导出后把这两个文件发给对方：
 
-- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0.tgz`
-- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0.tgz.sha256`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-agent-kit-0.1.0.tgz`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-agent-kit-0.1.0.tgz.sha256`
 
 这个 `.tgz` 是自包含安装包，包含 skill 文档、JavaScript runtime、编译后的 runtime 二进制、模板和安装器。使用方不需要拿到 `codemem` 源码仓库。
 
@@ -169,11 +169,16 @@ bun run core/src/cli/upgrade.ts --root . --agent cursor --target-dir <target_pro
 
 目标项目中主要生成：
 
-- `.codemem/docs/global/global-standard.md`
 - `docs/spec/project-standard.<project_name>.md`
-- `.codemem/docs/reports/standards-conflicts.md`
-- `.codemem/_system/logs/standards/<project_name>.jsonl`
-- `.codemem-project.json`
+- `AGENTS.md`
+- `.cursor/rules/codemem-standards.mdc`（Cursor 场景）
+
+内部状态按项目写入用户目录：
+
+- `~/.codemem/projects/<project_state_key>/docs/global/global-standard.md`
+- `~/.codemem/projects/<project_state_key>/docs/reports/standards-conflicts.md`
+- `~/.codemem/projects/<project_state_key>/_system/logs/standards/<project_name>.jsonl`
+- `~/.codemem/projects/<project_state_key>/project.json`
 
 用户目录中主要安装 agent skill 资源：
 

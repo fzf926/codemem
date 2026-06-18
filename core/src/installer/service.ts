@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { upsertProject } from "../registry/service";
 import { sha256File } from "../shared/hash";
+import { getStateDir } from "../shared/paths";
 import { run, runTar } from "../shared/process";
 import { nowToken } from "../shared/time";
 import { compareVersions, satisfiesMinVersion } from "../shared/version";
@@ -64,9 +65,13 @@ export interface InstallResult {
 }
 
 function loadInstalledState(targetDir: string): InstalledStandardState | null {
-  const stateFile = join(targetDir, ".codemem", "installed-standard.json");
+  const stateFile = join(getStateDir(targetDir), "installed-standard.json");
   if (!existsSync(stateFile)) {
-    return null;
+    const legacyStateFile = join(targetDir, ".codemem", "installed-standard.json");
+    if (!existsSync(legacyStateFile)) {
+      return null;
+    }
+    return JSON.parse(readFileSync(legacyStateFile, "utf8")) as InstalledStandardState;
   }
 
   return JSON.parse(readFileSync(stateFile, "utf8")) as InstalledStandardState;
@@ -222,6 +227,7 @@ export function installPackage(options: InstallOptions): InstallResult {
   if (options.json) {
     const result = spawnSync(process.execPath, args, {
       encoding: "utf8",
+      env: process.env,
       stdio: ["ignore", "pipe", "pipe"],
     });
 
@@ -229,7 +235,7 @@ export function installPackage(options: InstallOptions): InstallResult {
       throw new Error((result.stderr || result.stdout || "Package installer failed").trim());
     }
   } else {
-    run(process.execPath, args);
+    run(process.execPath, args, { env: process.env });
   }
 
   upsertProject(options.rootDir, {

@@ -185,7 +185,7 @@ bun run core/src/cli/uninstall.ts --root . --target-dir /path/to/target-project
 - Claude Code 命令集成，例如 `~/.claude/commands/codemem.md`
 - 旧版全局命令 shim、安装元数据、受管源码目录和 shell profile PATH 块，如果它们存在
 
-默认不会删除目标项目里已经生成的 `.codemem/` 规范历史，也不会改动 `AGENTS.md`、`.cursor/rules/codemem-standards.mdc` 或 `.gitignore`，避免误删项目沉淀。
+默认不会删除 `~/.codemem/projects/<project_state_key>/` 中保存的项目规范历史，也不会改动 `AGENTS.md`、`.cursor/rules/codemem-standards.mdc` 或旧版 `.gitignore` 内容，避免误删项目沉淀。
 
 如果你确认也要删除某个目标项目的历史规范和 codemem 项目侧引用，再显式执行：
 
@@ -237,11 +237,11 @@ bun run core/src/cli/capture.ts --root . \
 bun run core/src/cli/build.ts --root . --project <project_name> --lang zh
 ```
 
-生成产物位于 `.codemem/docs/`：
+生成产物分两类：项目规范文档留在目标项目里，内部文档进入 `~/.codemem/projects/<project_state_key>/docs/`：
 
-- `docs/global/global-standard.md`
+- `~/.codemem/projects/<project_state_key>/docs/global/global-standard.md`
 - `docs/spec/project-standard.<project_name>.md`
-- `docs/reports/standards-conflicts.md`
+- `~/.codemem/projects/<project_state_key>/docs/reports/standards-conflicts.md`
 
 ### 第四步：生成分享安装包
 
@@ -249,7 +249,7 @@ bun run core/src/cli/build.ts --root . --project <project_name> --lang zh
 bun run core/src/cli/package.ts --root . --project <project_name> --version <version> --lang zh
 ```
 
-生成产物位于 `.codemem/_system/packages/standards/`：
+生成产物位于 `~/.codemem/projects/<project_state_key>/_system/packages/standards/`：
 
 - `<package-id>-<version>/`
 - `<package-id>-<version>.tgz`
@@ -390,20 +390,23 @@ node /tmp/codemem-package/shared-standard-demo-1.2.0/install.mjs \
 
 ## 6. 安装后会生成什么
 
-安装完成后，目标项目下会生成 `.codemem/` 相关内容：
+安装完成后，目标项目只保留规范入口文档；内部状态按项目写入 `~/.codemem/projects/<project_state_key>/`：
 
-- `.codemem/installed-standard/`
-- `.codemem/installed-standard.json`
-- `.codemem/_system/meta/standards/<project>.env`
-- `.codemem/_system/logs/standards/<project>.jsonl`
-- `.codemem-project.json`
+- `docs/spec/project-standard.<project_name>.md` 或自定义的 `--project-doc-path`
+- `AGENTS.md`
+- `.cursor/rules/codemem-standards.mdc`（Cursor 场景）
+- `~/.codemem/projects/<project_state_key>/installed-standard/`
+- `~/.codemem/projects/<project_state_key>/installed-standard.json`
+- `~/.codemem/projects/<project_state_key>/_system/meta/standards/<project>.env`
+- `~/.codemem/projects/<project_state_key>/_system/logs/standards/<project>.jsonl`
+- `~/.codemem/projects/<project_state_key>/project.json`
 - `~/.codemem/_system/registry/projects-registry.json`
 
 这些文件分别用于：
 
 - 保存安装过来的规范文档和 manifest
 - 记录当前安装状态
-- 记录目标项目的共享接入信息，便于其他协作者拉代码后识别这是一个已启用 codemem 的项目
+- 记录目标项目的共享接入信息
 - 记录当前机器上登记过的项目注册表
 
 ## 7. 如何确认安装成功
@@ -416,10 +419,11 @@ node /tmp/codemem-package/shared-standard-demo-1.2.0/install.mjs \
 
 ### 看目标目录
 
-确认这些文件存在：
+确认项目规范文档和 home state 存在：
 
 ```bash
-ls -la /path/to/target-project/.codemem
+ls -la /path/to/target-project/docs/spec
+ls -la ~/.codemem/projects
 ```
 
 ### 看项目注册状态
@@ -480,14 +484,14 @@ bun run core/src/cli/agent.ts --root . export --agent all --target-dir /path/to/
 当前项目的默认导出路径可以直接使用：
 
 ```bash
-bun run core/src/cli/agent.ts --root . export --agent all --target-dir .codemem/_system/packages/agents --version 0.1.0 --lang zh
+bun run core/src/cli/agent.ts --root . export --agent all --version 0.1.0 --lang zh
 ```
 
 对应产物示例：
 
-- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0/`
-- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0.tgz`
-- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0.tgz.sha256`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-agent-kit-0.1.0/`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-agent-kit-0.1.0.tgz`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-agent-kit-0.1.0.tgz.sha256`
 
 也可以只导出某一个 agent：
 
@@ -550,7 +554,7 @@ node install.mjs --agent cursor --target-dir /path/to/target-project --skill-dir
 
 - Cursor/Codex 会从 `~/.codex/skills/codemem/` 读取 skill。
 - Claude Code 默认会在目标项目写入 `.claude/commands/codemem.md`，并共用 `~/.codex/skills/codemem/` 下的 runtime。
-- 目标业务项目不需要复制 runtime 或模板；后续由 agent 在项目内生成 `.codemem/` 状态和规范文档。
+- 目标业务项目不需要复制 runtime 或模板；后续由 agent 在项目内生成规范入口文档，内部状态统一写入 `~/.codemem/projects/<project_state_key>/`。
 
 ## 11. 推荐给外部使用方的最小交付说明
 

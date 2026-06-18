@@ -7,7 +7,7 @@
 - `core/src/`：运行时实现
 - `core/dist/`：编译后的 CLI 二进制
 - `skills/codemem/`：skill 提示词与模板
-- `.codemem/`：生成的状态、日志、注册表与安装包产物
+- `~/.codemem/projects/<project_state_key>/`：按项目隔离保存内部状态、日志、注册表、全局规范、冲突报告与安装包产物
 
 ## 共享资源结构
 
@@ -19,15 +19,17 @@ flowchart TD
   B --> E["~/.codex/skills/codemem/templates"]
   D --> F["agent 集成或项目内 CLI 调用"]
   E --> F
-  G["目标项目"] --> H[".codemem/<br/>状态、文档、日志、注册表"]
+  G["目标项目"] --> H["docs/spec + AGENTS.md<br/>项目规范入口"]
+  I["~/.codemem/projects/<project_state_key>"] --> J["内部状态、日志、注册表、全局规范、冲突报告"]
   F --> H
+  F --> I
 ```
 
 说明：
 
 - `skills/codemem/templates/` 是仓库里的源码模板目录，只给构建、打包、安装器使用。
 - `~/.codex/skills/codemem/scripts/`、`~/.codex/skills/codemem/runtime/bin/` 和 `~/.codex/skills/codemem/templates/` 是 agent skill 使用的共享资源，不提供 shell 全局命令。
-- 目标项目只保留 `.codemem/` 状态与生成文档，不再复制 runtime 和模板副本。
+- 目标项目只保留项目规范文档、`AGENTS.md` 等 agent 入口文件，不再复制 runtime、模板或 `.codemem/` 状态目录；内部状态按项目收归到 `~/.codemem/projects/<project_state_key>/`。
 
 ## 常用命令
 
@@ -73,13 +75,13 @@ bun run core/src/cli/upgrade.ts --root . --agent cursor --target-dir <project_di
 如果你想把本机生成的 skill 直接发给别人使用，导出 agent 安装包即可。导出的 `.tgz` 是自包含的，对方不需要拿到 `codemem` 源码仓库：
 
 ```bash
-bun run core/src/cli/agent.ts --root . export --agent all --target-dir .codemem/_system/packages/agents --version 0.1.0 --lang zh
+bun run core/src/cli/agent.ts --root . export --agent all --version 0.1.0 --lang zh
 ```
 
 把生成的这两个文件发给对方：
 
-- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0.tgz`
-- `.codemem/_system/packages/agents/codemem-agent-kit-0.1.0.tgz.sha256`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-agent-kit-0.1.0.tgz`
+- `~/.codemem/projects/<project_state_key>/_system/packages/agents/codemem-agent-kit-0.1.0.tgz.sha256`
 
 对方解压后执行：
 

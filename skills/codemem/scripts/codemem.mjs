@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { basename, dirname, isAbsolute, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -98,8 +99,19 @@ function getGlobalCodememDir() {
   return join(process.env.HOME || "", ".codemem");
 }
 
+function safePathPart(value) {
+  return value.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "project";
+}
+
+function getProjectStateKey(rootDir) {
+  const resolved = resolve(rootDir);
+  const slug = safePathPart(basename(resolved));
+  const hash = createHash("sha256").update(resolved).digest("hex").slice(0, 12);
+  return `${slug}-${hash}`;
+}
+
 function getStateDir(rootDir) {
-  return join(rootDir, ".codemem");
+  return join(getGlobalCodememDir(), "projects", getProjectStateKey(rootDir));
 }
 
 function getDocsDir(rootDir) {
@@ -139,7 +151,7 @@ function getGlobalProjectsRegistryFile() {
 }
 
 function getProjectMarkerFile(rootDir) {
-  return join(rootDir, ".codemem-project.json");
+  return join(getStateDir(rootDir), "project.json");
 }
 
 function getGlobalStandardFile(rootDir) {
@@ -171,7 +183,12 @@ function getProjectStandardRelativePath(rootDir, project, projectDocPath) {
   const fromMarker = marker && typeof marker.projectDocPath === "string"
     ? normalizeProjectDocPath(marker.projectDocPath)
     : undefined;
-  return fromMarker || getDefaultProjectStandardRelativePath(project);
+  if (fromMarker) return fromMarker;
+  const legacyMarker = loadJson(join(rootDir, ".codemem-project.json"), null);
+  const fromLegacyMarker = legacyMarker && typeof legacyMarker.projectDocPath === "string"
+    ? normalizeProjectDocPath(legacyMarker.projectDocPath)
+    : undefined;
+  return fromLegacyMarker || getDefaultProjectStandardRelativePath(project);
 }
 
 function getProjectStandardFile(rootDir, project, projectDocPath) {
@@ -185,6 +202,51 @@ function getStandardsConflictsFile(rootDir) {
 function getTemplatesDir() {
   if (process.env.CODEMEM_TEMPLATES_DIR) return process.env.CODEMEM_TEMPLATES_DIR;
   return resolve(scriptDir, "..", "templates");
+}
+
+function copyInto(sourcePath, targetPath) {
+  mkdirSync(dirname(targetPath), { recursive: true });
+  cpSync(sourcePath, targetPath, { recursive: true });
+}
+
+function moveFileIfPresent(sourcePath, targetPath) {
+  if (!existsSync(sourcePath) || existsSync(targetPath)) return;
+  copyInto(sourcePath, targetPath);
+  rmSync(sourcePath, { recursive: true, force: true });
+}
+
+function mergeDirectoryIfPresent(sourceDir, targetDir) {
+  if (!existsSync(sourceDir)) return;
+  mkdirSync(targetDir, { recursive: true });
+  for (const entry of readdirSync(sourceDir)) {
+    const sourcePath = join(sourceDir, entry);
+    const targetPath = join(targetDir, entry);
+    if (!existsSync(targetPath)) copyInto(sourcePath, targetPath);
+  }
+  rmSync(sourceDir, { recursive: true, force: true });
+}
+
+function migrateLegacyStateLayout(rootDir) {
+  const legacyStateDir = join(rootDir, ".codemem");
+  if (!existsSync(legacyStateDir)) return;
+
+  mergeDirectoryIfPresent(join(legacyStateDir, ".standards-logs"), getLogsDir(rootDir));
+  mergeDirectoryIfPresent(join(legacyStateDir, ".standards-meta"), getMetaDir(rootDir));
+  mergeDirectoryIfPresent(join(legacyStateDir, "_system", "logs", "standards"), getLogsDir(rootDir));
+  mergeDirectoryIfPresent(join(legacyStateDir, "_system", "meta", "standards"), getMetaDir(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "docs", "global", "global-standard.md"), getGlobalStandardFile(rootDir));
+  moveFileIfPresent(join(legacyStateDir, "docs", "reports", "standards-conflicts.md"), getStandardsConflictsFile(rootDir));
+
+  const legacyProjectsDir = join(legacyStateDir, "docs", "projects");
+  if (existsSync(legacyProjectsDir)) {
+    for (const entry of readdirSync(legacyProjectsDir)) {
+      if (!entry.endsWith(".md")) continue;
+      const project = basename(entry, ".md").replace(/^project-standard\./, "").replace(/^PROJECT_STANDARD\./, "");
+      moveFileIfPresent(join(legacyProjectsDir, entry), getProjectStandardFile(rootDir, project));
+    }
+  }
+
+  rmSync(legacyStateDir, { recursive: true, force: true });
 }
 
 function loadJson(file, fallback) {
@@ -241,6 +303,7 @@ function upsertProject(rootDir, record) {
     standardsPolicyVersion: 1,
     ...(normalized.projectDocPath ? { projectDocPath: normalized.projectDocPath } : {}),
   });
+  rmSync(join(rootDir, ".codemem-project.json"), { force: true });
 }
 
 function normalizeText(value) {
@@ -404,16 +467,16 @@ function renderAutoCaptureSignals() {
   ];
 }
 
-function renderAgentsSection(project, projectDocPath) {
+function renderAgentsSection(project, projectDocPath, globalDocPath, conflictsDocPath) {
   return [
     AGENTS_MANAGED_START,
     "## Codemem Standards",
     "",
     "Before making code changes, architecture decisions, or workflow recommendations, read these files when they exist:",
     "",
-    "1. `.codemem/docs/global/global-standard.md`",
+    `1. \`${globalDocPath}\``,
     `2. \`${projectDocPath}\``,
-    "3. `.codemem/docs/reports/standards-conflicts.md`",
+    `3. \`${conflictsDocPath}\``,
     "",
     "Behavior rules:",
     "",
@@ -439,7 +502,7 @@ function renderAgentsSection(project, projectDocPath) {
 
 function syncAgentsGuide(rootDir, project, projectDocPath) {
   const agentsFile = join(rootDir, "AGENTS.md");
-  const managedSection = renderAgentsSection(project, projectDocPath);
+  const managedSection = renderAgentsSection(project, projectDocPath, getGlobalStandardFile(rootDir), getStandardsConflictsFile(rootDir));
   if (!existsSync(agentsFile)) {
     writeFileSync(agentsFile, [
       "# AGENTS.md",
@@ -479,9 +542,9 @@ function syncCursorRule(rootDir, project, projectDocPath) {
     "",
     "Before answering implementation questions or editing code, read these files when they exist:",
     "",
-    "1. `.codemem/docs/global/global-standard.md`",
+    `1. \`${getGlobalStandardFile(rootDir)}\``,
     `2. \`${projectDocPath}\``,
-    "3. `.codemem/docs/reports/standards-conflicts.md`",
+    `3. \`${getStandardsConflictsFile(rootDir)}\``,
     "",
     "Use those documents as the default project conventions before proposing code or workflow changes.",
     "",
@@ -503,26 +566,12 @@ function syncCursorRule(rootDir, project, projectDocPath) {
 
 function syncGitignore(rootDir) {
   const gitignoreFile = join(rootDir, ".gitignore");
-  const entry = ".codemem/";
-  if (!existsSync(gitignoreFile)) {
-    writeFileSync(gitignoreFile, `${entry}\n`);
-    return gitignoreFile;
-  }
-
-  const existing = readFileSync(gitignoreFile, "utf8");
-  const hasEntry = existing
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .some((line) => line === entry || line === ".codemem");
-  if (!hasEntry) {
-    const separator = existing.endsWith("\n") || existing.length === 0 ? "" : "\n";
-    writeFileSync(gitignoreFile, `${existing}${separator}${entry}\n`);
-  }
   return gitignoreFile;
 }
 
 function initProject(args) {
   const rootDir = getRootDir(args);
+  migrateLegacyStateLayout(rootDir);
   const project = required(args, "project");
   const owner = args.get("owner") || "unknown";
   const projectPath = resolve(args.get("project-path") || rootDir);
@@ -574,6 +623,7 @@ function initProject(args) {
 
 function captureRule(args) {
   const rootDir = getRootDir(args);
+  migrateLegacyStateLayout(rootDir);
   const project = required(args, "project");
   const title = required(args, "title");
   const logsDir = getLogsDir(rootDir);
@@ -598,6 +648,7 @@ function captureRule(args) {
 
 function buildStandards(args) {
   const rootDir = getRootDir(args);
+  migrateLegacyStateLayout(rootDir);
   const project = required(args, "project");
   const lang = args.get("lang") || "zh";
   const includeDrafts = args.get("include-drafts") === "true";

@@ -56,7 +56,7 @@ function createInstallerScript(): string {
   ].join("\n");
 
   return `#!/usr/bin/env node
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -199,8 +199,15 @@ function getGlobalProjectsRegistryFile() {
   return join(getGlobalCodememDir(), "_system", "registry", "projects-registry.json");
 }
 
-function getProjectMarkerFile(targetDir) {
-  return join(targetDir, ".codemem-project.json");
+function safePathPart(value) {
+  return value.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "project";
+}
+
+function getProjectStateDir(targetDir) {
+  const resolved = resolve(targetDir);
+  const slug = safePathPart(resolved.split(/[\\/]/).filter(Boolean).pop() || "project");
+  const hash = createHash("sha256").update(resolved).digest("hex").slice(0, 12);
+  return join(getGlobalCodememDir(), "projects", slug + "-" + hash);
 }
 
 function sha256File(path) {
@@ -323,12 +330,13 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const manifest = JSON.parse(readFileSync(join(scriptDir, "standard-package.json"), "utf8"));
 const payloadDir = join(scriptDir, "payload");
 const targetDir = resolve(target);
-const stateDir = join(targetDir, ".codemem");
+const stateDir = getProjectStateDir(targetDir);
+const legacyStateDir = join(targetDir, ".codemem");
 const metaDir = join(stateDir, "_system", "meta", "standards");
 const logsDir = join(stateDir, "_system", "logs", "standards");
 const installedDir = join(stateDir, "installed-standard");
 const now = nowIso();
-const existingInstall = loadJson(join(stateDir, "installed-standard.json"), null);
+const existingInstall = loadJson(join(stateDir, "installed-standard.json"), loadJson(join(legacyStateDir, "installed-standard.json"), null));
 
 assertSupportedSchema(manifest);
 assertIntegrity(manifest, payloadDir);
@@ -395,7 +403,7 @@ if (index === -1) {
 }
 registry.updatedAt = now;
 saveJson(registryFile, registry);
-saveJson(getProjectMarkerFile(targetDir), {
+saveJson(join(stateDir, "project.json"), {
   schema: 1,
   tool: "codemem",
   enabled: true,
@@ -410,6 +418,12 @@ saveJson(getProjectMarkerFile(targetDir), {
   status: "configured",
   standardsPolicyVersion: 1
 });
+if (existsSync(join(targetDir, ".codemem-project.json"))) {
+  rmSync(join(targetDir, ".codemem-project.json"), { force: true });
+}
+if (existsSync(legacyStateDir)) {
+  rmSync(legacyStateDir, { recursive: true, force: true });
+}
 
   const installPayload = {
     action: installAction,

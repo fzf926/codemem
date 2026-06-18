@@ -45,9 +45,9 @@ export const commandSpecs: CommandSpec[] = [
       },
     ],
     outputs: [
-      ".codemem/_system/meta/standards/<project>.env",
-      ".codemem/_system/logs/standards/<project>.jsonl",
-      ".codemem-project.json",
+      "~/.codemem/projects/<project_state_key>/_system/meta/standards/<project>.env",
+      "~/.codemem/projects/<project_state_key>/_system/logs/standards/<project>.jsonl",
+      "~/.codemem/projects/<project_state_key>/project.json",
       "~/.codemem/_system/registry/projects-registry.json",
     ],
   },
@@ -145,9 +145,9 @@ export const commandSpecs: CommandSpec[] = [
       },
     ],
     outputs: [
-      ".codemem/docs/global/global-standard.md",
+      "~/.codemem/projects/<project_state_key>/docs/global/global-standard.md",
       "docs/spec/project-standard.<project_name>.md or configured --project-doc-path",
-      ".codemem/docs/reports/standards-conflicts.md",
+      "~/.codemem/projects/<project_state_key>/docs/reports/standards-conflicts.md",
     ],
   },
   {
@@ -180,10 +180,10 @@ export const commandSpecs: CommandSpec[] = [
       },
     ],
     outputs: [
-      ".codemem/_system/packages/standards/<package-id>-<version>/",
-      ".codemem/_system/packages/standards/<package-id>-<version>.tgz",
-      ".codemem/_system/packages/standards/<package-id>-<version>.tgz.sha256",
-      ".codemem/_system/registry/packages-registry.json",
+      "~/.codemem/projects/<project_state_key>/_system/packages/standards/<package-id>-<version>/",
+      "~/.codemem/projects/<project_state_key>/_system/packages/standards/<package-id>-<version>.tgz",
+      "~/.codemem/projects/<project_state_key>/_system/packages/standards/<package-id>-<version>.tgz.sha256",
+      "~/.codemem/projects/<project_state_key>/_system/registry/packages-registry.json",
     ],
   },
   {
@@ -295,8 +295,8 @@ export const commandSpecs: CommandSpec[] = [
       "Codex: auto-detect ~/.codex/skills/codemem/SKILL.md",
       "Cursor: ~/.codex/skills/codemem/SKILL.md",
       "Claude Code: auto-detect existing <project>/.claude/commands/ or ~/.claude/commands/ before falling back",
-      ".codemem/_system/packages/agents/<package-name>-<version>/",
-      ".codemem/_system/packages/agents/<package-name>-<version>.tgz",
+      "~/.codemem/projects/<project_state_key>/_system/packages/agents/<package-name>-<version>/",
+      "~/.codemem/projects/<project_state_key>/_system/packages/agents/<package-name>-<version>.tgz",
     ],
   },
   {
@@ -390,7 +390,7 @@ export const commandSpecs: CommandSpec[] = [
       "removes ~/.codex/skills/codemem/",
       "removes ~/.claude/commands/codemem.md when present",
       "removes legacy ~/.local/bin/codemem and ~/.codemem/source/ when present",
-      "optionally removes <target-dir>/.codemem/, .cursor/rules/codemem-standards.mdc, codemem AGENTS.md block, and .gitignore entry",
+      "optionally removes ~/.codemem/projects/<project_state_key>/, legacy <target-dir>/.codemem/, .cursor/rules/codemem-standards.mdc, codemem AGENTS.md block, and legacy .gitignore entry",
     ],
   },
   {

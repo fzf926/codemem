@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { ensureDir, loadJson, saveJson } from "../shared/fs";
 import {
@@ -150,6 +150,7 @@ export function saveProjectMarker(rootDir: string, record: ProjectRecord): void 
     ...(record.projectDocPath ? { projectDocPath: record.projectDocPath } : {}),
   };
   saveJson(getProjectMarkerFile(rootDir), marker);
+  rmSync(join(rootDir, ".codemem-project.json"), { force: true });
 }
 
 export function loadProjectMarker(rootDir: string): ProjectMarker | null {

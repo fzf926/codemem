@@ -117,6 +117,6 @@ Install policy:
 - Runtime code lives in `core/src/`.
 - Source templates live in `skills/codemem/templates/`.
 - Installed agent integrations share one global templates directory under `~/.codex/skills/codemem/templates/`.
-- State and artifacts live in `.codemem/`.
+- Internal state and artifacts live under `~/.codemem/projects/<project_state_key>/`; the project keeps only generated standard documents and agent-facing guidance files.
 - Shareable packages declare compatibility metadata such as manifest schema,
   installer schema, tool version, and minimum Node.js runtime.

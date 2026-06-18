@@ -42,9 +42,9 @@ codemem init --project <project_name> --owner <owner_name>
 
 State created:
 
-- `.codemem/_system/meta/standards/<project>.env`
-- `.codemem/_system/logs/standards/<project>.jsonl`
-- `.codemem-project.json`
+- `~/.codemem/projects/<project_state_key>/_system/meta/standards/<project>.env`
+- `~/.codemem/projects/<project_state_key>/_system/logs/standards/<project>.jsonl`
+- `~/.codemem/projects/<project_state_key>/project.json`
 - `~/.codemem/_system/registry/projects-registry.json`
 
 ### Step 2: Capture standards during development
@@ -94,9 +94,9 @@ codemem build --project <project_name> --lang zh
 
 Outputs:
 
-- `.codemem/docs/global/global-standard.md`
+- `~/.codemem/projects/<project_state_key>/docs/global/global-standard.md`
 - `docs/spec/project-standard.<project_name>.md or configured --project-doc-path`
-- `.codemem/docs/reports/standards-conflicts.md`
+- `~/.codemem/projects/<project_state_key>/docs/reports/standards-conflicts.md`
 
 ### Step 4: Package the shared standard
 
@@ -106,10 +106,10 @@ codemem package --project <project_name> --version <version> --lang zh
 
 Outputs:
 
-- `.codemem/_system/packages/standards/<package-id>-<version>/`
-- `.codemem/_system/packages/standards/<package-id>-<version>.tgz`
-- `.codemem/_system/packages/standards/<package-id>-<version>.tgz.sha256`
-- `.codemem/_system/registry/packages-registry.json`
+- `~/.codemem/projects/<project_state_key>/_system/packages/standards/<package-id>-<version>/`
+- `~/.codemem/projects/<project_state_key>/_system/packages/standards/<package-id>-<version>.tgz`
+- `~/.codemem/projects/<project_state_key>/_system/packages/standards/<package-id>-<version>.tgz.sha256`
+- `~/.codemem/projects/<project_state_key>/_system/registry/packages-registry.json`
 
 ### Step 5: Install a shared package into another project
 
@@ -242,6 +242,6 @@ codemem projects
 - Runtime code lives in `core/src/`.
 - Source templates live in `skills/codemem/templates/`.
 - Installed agent integrations share one global templates directory under `~/.codex/skills/codemem/templates/`.
-- State and artifacts live in `.codemem/`.
+- Internal state and artifacts live under `~/.codemem/projects/<project_state_key>/`; the project keeps only generated standard documents and agent-facing guidance files.
 - Shareable packages declare compatibility metadata such as manifest schema,
   installer schema, tool version, and minimum Node.js runtime.
