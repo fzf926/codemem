@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -56,6 +56,8 @@ describe("agent install and export", () => {
       expect(content).toContain("模块扩展规范");
       expect(content).toContain("node");
       expect(content).toContain("scripts/codemem.mjs");
+      expect(content).toContain("当用户要求更新 codemem skill");
+      expect(content).toContain("update --target-dir <project_root>");
     } finally {
       process.env.HOME = previousHome;
     }
@@ -88,6 +90,7 @@ describe("agent install and export", () => {
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要求用户显式提到 codemem");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要把架构或重构产生的规范记录当成代码改完后的可选后续事项");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("scripts/codemem.mjs");
+    expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("update --target-dir <project_root>");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("~/.codemem/projects/<project_state_key>/docs/global/global-standard.md");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("默认连续完成初始化、规范记录、项目扫描和文档生成");
     expect(readFileSync(join(skillDir, "SKILL.md"), "utf8")).toContain("不要把明显低风险的后续工作包装成");
@@ -114,6 +117,41 @@ describe("agent install and export", () => {
     expect(existsSync(join(skillDir, "templates", "project-standard.en.template.md"))).toBe(false);
     expect(existsSync(join(skillDir, "templates", "project-standard.zh.template.md"))).toBe(true);
   });
+
+  test("skill runtime update refreshes from a local source checkout", () => {
+    const root = process.cwd();
+    const homeDir = mkdtempSync(join(tmpdir(), "codemem-skill-update-home-"));
+    const targetDir = mkdtempSync(join(tmpdir(), "codemem-skill-update-target-"));
+
+    try {
+      const result = spawnSync("node", [
+        join(root, "skills", "codemem", "scripts", "codemem.mjs"),
+        "update",
+        "--target-dir",
+        targetDir,
+        "--agent",
+        "cursor",
+        "--source-dir",
+        root,
+      ], {
+        cwd: targetDir,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          HOME: homeDir,
+        },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Updated codemem from local source");
+      expect(existsSync(join(homeDir, ".codex", "skills", "codemem", "SKILL.md"))).toBe(true);
+      expect(existsSync(join(homeDir, ".codex", "skills", "codemem", "scripts", "codemem.mjs"))).toBe(true);
+      expect(readFileSync(join(homeDir, ".codex", "skills", "codemem", "SKILL.md"), "utf8")).toContain("update --target-dir <project_root>");
+    } finally {
+      rmSync(homeDir, { recursive: true, force: true });
+      rmSync(targetDir, { recursive: true, force: true });
+    }
+  }, 30000);
 
   test("detect treats a skill missing the JavaScript runtime script as not fully configured", () => {
     const targetDir = mkdtempSync(join(tmpdir(), "codemem-agent-detect-stale-target-"));

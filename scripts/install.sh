@@ -20,6 +20,7 @@ Options:
   --repo-url <url>       Git repository URL. Defaults to https://github.com/fzf926/codemem.git
   --install-dir <dir>    Local source checkout directory. Defaults to current directory when it is a codemem checkout; otherwise a temporary clone
   --agent <agent>        codex, cursor, or claude-code. Defaults to cursor
+  --target-dir <dir>     Business project directory to install for. Defaults to current directory
   --lang <zh>            Prompt language. Only zh is supported.
   -h, --help             Show this help
 
@@ -66,6 +67,10 @@ while [ "$#" -gt 0 ]; do
       AGENT="${2:?missing value for --agent}"
       shift 2
       ;;
+    --target-dir)
+      TARGET_DIR="${2:?missing value for --target-dir}"
+      shift 2
+      ;;
     --lang)
       LANGUAGE="${2:?missing value for --lang}"
       shift 2
@@ -82,7 +87,15 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-resolve_current_dir
+if [ -z "$TARGET_DIR" ]; then
+  resolve_current_dir
+else
+  if [ ! -d "$TARGET_DIR" ]; then
+    echo "codemem install: --target-dir does not exist: $TARGET_DIR" >&2
+    exit 1
+  fi
+  TARGET_DIR="$(cd "$TARGET_DIR" && pwd -P)"
+fi
 
 if [ -z "$INSTALL_DIR" ]; then
   if [ -n "$CURRENT_DIR" ] && is_codemem_checkout "$CURRENT_DIR"; then

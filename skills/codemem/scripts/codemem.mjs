@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { basename, dirname, isAbsolute, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -87,6 +88,23 @@ function required(args, key) {
     throw new Error(`--${key} is required`);
   }
   return value;
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
+}
+
+function runCommand(command, args, options = {}) {
+  const result = spawnSync(command, args, {
+    cwd: options.cwd,
+    encoding: "utf8",
+    stdio: options.stdio || "inherit",
+    env: process.env,
+  });
+  if (result.status !== 0) {
+    throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status}`);
+  }
+  return result;
 }
 
 function getRootDir(args) {
@@ -737,6 +755,115 @@ function buildStandards(args) {
   }
 }
 
+function detectAgent(args) {
+  const explicit = args.get("agent");
+  if (explicit) return explicit;
+  const home = process.env.HOME || "";
+  const sharedSkillDir = join(home, ".codex", "skills", "codemem");
+  if (existsSync(join(sharedSkillDir, "agents", "openai.yaml"))) return "codex";
+  if (existsSync(join(sharedSkillDir, "meta.json"))) return "cursor";
+  return "cursor";
+}
+
+function assertAgent(agent) {
+  if (!["codex", "cursor", "claude-code"].includes(agent)) {
+    throw new Error("--agent must be codex, cursor, or claude-code");
+  }
+}
+
+function verifySkillInstall() {
+  const skillDir = join(process.env.HOME || "", ".codex", "skills", "codemem");
+  const requiredPaths = [
+    join(skillDir, "SKILL.md"),
+    join(skillDir, "scripts", "codemem.mjs"),
+    join(skillDir, "templates"),
+    join(skillDir, "runtime", "bin"),
+  ];
+  for (const path of requiredPaths) {
+    if (!existsSync(path)) {
+      throw new Error(`codemem update verification failed; missing ${path}`);
+    }
+  }
+  return skillDir;
+}
+
+function updateCodemem(args) {
+  const targetDir = resolve(args.get("target-dir") || args.get("root") || process.cwd());
+  const agent = detectAgent(args);
+  const lang = args.get("lang") || "zh";
+  const portablePackage = args.get("portable") || args.get("package");
+  const sourceDir = args.get("source-dir");
+  const installScriptUrl = args.get("install-script-url") || "https://raw.githubusercontent.com/fzf926/codemem/main/scripts/install.sh";
+  assertAgent(agent);
+
+  if (!existsSync(targetDir)) {
+    throw new Error(`target directory does not exist: ${targetDir}`);
+  }
+
+  if (portablePackage) {
+    const packagePath = resolve(portablePackage);
+    if (!existsSync(packagePath)) {
+      throw new Error(`portable package does not exist: ${packagePath}`);
+    }
+    const skillRoot = join(process.env.HOME || "", ".codex", "skills");
+    mkdirSync(skillRoot, { recursive: true });
+    runCommand("tar", ["-xzf", packagePath, "-C", skillRoot]);
+    const skillDir = verifySkillInstall();
+    console.log("Updated codemem from portable package");
+    console.log(`Agent: ${agent}`);
+    console.log(`Target project: ${targetDir}`);
+    console.log(`Skill: ${skillDir}`);
+    return;
+  }
+
+  if (sourceDir) {
+    const repoDir = resolve(sourceDir);
+    if (!existsSync(join(repoDir, "scripts", "build.sh")) || !existsSync(join(repoDir, "core", "src", "cli", "agent.ts"))) {
+      throw new Error(`source-dir is not a codemem checkout: ${repoDir}`);
+    }
+    runCommand("bash", ["scripts/build.sh"], { cwd: repoDir });
+    runCommand("bun", [
+      "run",
+      "core/src/cli/agent.ts",
+      "--root",
+      repoDir,
+      "install",
+      "--agent",
+      agent,
+      "--target-dir",
+      targetDir,
+      "--lang",
+      lang,
+    ], { cwd: repoDir });
+    const skillDir = verifySkillInstall();
+    console.log("Updated codemem from local source");
+    console.log(`Agent: ${agent}`);
+    console.log(`Target project: ${targetDir}`);
+    console.log(`Skill: ${skillDir}`);
+    return;
+  }
+
+  runCommand("bash", [
+    "-lc",
+    [
+      "curl -fsSL",
+      shellQuote(installScriptUrl),
+      "| bash -s --",
+      "--agent",
+      shellQuote(agent),
+      "--target-dir",
+      shellQuote(targetDir),
+      "--lang",
+      shellQuote(lang),
+    ].join(" "),
+  ]);
+  const skillDir = verifySkillInstall();
+  console.log("Updated codemem from remote install script");
+  console.log(`Agent: ${agent}`);
+  console.log(`Target project: ${targetDir}`);
+  console.log(`Skill: ${skillDir}`);
+}
+
 function usage() {
   return [
     "codemem skill runtime",
@@ -745,6 +872,7 @@ function usage() {
     "  node codemem.mjs init --root <project_root> --project <name> --owner <owner> --project-path <project_root> [--project-doc-path <relative_md_path>]",
     "  node codemem.mjs capture --root <project_root> --project <name> --type <type> --title <title> --rule <rule>",
     "  node codemem.mjs build --root <project_root> --project <name> --lang zh",
+    "  node codemem.mjs update --target-dir <project_root> [--agent codex|cursor|claude-code] [--portable <tgz>|--source-dir <codemem_repo>]",
   ].join("\n");
 }
 
@@ -762,6 +890,8 @@ try {
     captureRule(args);
   } else if (command === "build") {
     buildStandards(args);
+  } else if (command === "update") {
+    updateCodemem(args);
   } else {
     throw new Error(`Unknown command: ${command}`);
   }

@@ -173,6 +173,8 @@ bun run core/src/cli/upgrade.ts --root . --agent cursor --target-dir /path/to/ta
 bun run core/src/cli/upgrade.ts --root . --agent cursor --target-dir /path/to/target-project --pull true
 ```
 
+如果对方已经安装过 codemem skill，也可以让 AI 直接阅读 [AI_UPDATE.md](./AI_UPDATE.md)。新版 skill 内部提供 `update` 子命令，可通过远程脚本、portable 包或本地源码刷新已安装的 skill。
+
 ### 第七步：后续如何卸载
 
 如果你后续不想继续使用 `codemem`，可以执行：

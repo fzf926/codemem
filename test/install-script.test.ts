@@ -72,4 +72,39 @@ describe("remote install script", () => {
       rmSync(skillDir, { recursive: true, force: true });
     }
   }, 30000);
+
+  test("supports explicit target-dir from another working directory", () => {
+    const root = process.cwd();
+    const targetDir = mkdtempSync(join(tmpdir(), "codemem-remote-install-explicit-target-"));
+    const runDir = mkdtempSync(join(tmpdir(), "codemem-remote-install-run-"));
+    const skillDir = mkdtempSync(join(tmpdir(), "codemem-remote-install-explicit-skill-"));
+
+    try {
+      const result = spawnSync("bash", [
+        join(root, "scripts", "install.sh"),
+        "--repo-url",
+        `file://${root}`,
+        "--agent",
+        "cursor",
+        "--target-dir",
+        targetDir,
+      ], {
+        cwd: runDir,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          HOME: skillDir,
+        },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("codemem agent integration installed successfully");
+      expect(existsSync(join(skillDir, ".codex", "skills", "codemem", "SKILL.md"))).toBe(true);
+      expect(existsSync(join(runDir, "scripts", "build.sh"))).toBe(false);
+    } finally {
+      rmSync(targetDir, { recursive: true, force: true });
+      rmSync(runDir, { recursive: true, force: true });
+      rmSync(skillDir, { recursive: true, force: true });
+    }
+  }, 30000);
 });

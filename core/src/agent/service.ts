@@ -281,6 +281,7 @@ function renderSharedWorkflow(input: { scriptFile: string; lang: string }): stri
   const initCommand = `node "${toPosixPath(input.scriptFile)}" init`;
   const captureCommand = `node "${toPosixPath(input.scriptFile)}" capture`;
   const buildCommand = `node "${toPosixPath(input.scriptFile)}" build`;
+  const updateCommand = `node "${toPosixPath(input.scriptFile)}" update`;
   const globalDoc = "~/.codemem/projects/<project_state_key>/docs/global/global-standard.md";
   const projectDoc = "docs/spec/project-standard.<project_name>.md";
   const conflictsDoc = "~/.codemem/projects/<project_state_key>/docs/reports/standards-conflicts.md";
@@ -302,8 +303,9 @@ function renderSharedWorkflow(input: { scriptFile: string; lang: string }): stri
     `12. 使用 \`${captureCommand} --root <project_root> ...\` 逐条追加规范。`,
     "13. 只要本轮新增了规范、项目状态发生变化、或用户要求初始化/更新规范文档，就在同一轮里继续生成规范文档。",
     `14. 直接执行 \`${buildCommand} --root <project_root> --project <name> --lang zh\`，除非仍存在高风险决策需要确认。`,
-    "15. 只有在高风险场景下才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
-    "16. 不要用“如果你要，我可以继续……”作为收尾；如果下一步低风险且明显属于用户请求范围，就先做完再最终汇报。",
+    `15. 当用户要求更新 codemem skill、刷新 codemem 版本或安装新版时，优先执行 \`${updateCommand} --target-dir <project_root> --agent <codex|cursor|claude-code>\`；如果用户提供 portable tgz，则执行 \`${updateCommand} --target-dir <project_root> --agent <agent> --portable <tgz>\`；如果用户提供 codemem 源码目录，则执行 \`${updateCommand} --target-dir <project_root> --agent <agent> --source-dir <codemem_repo>\`。`,
+    "16. 只有在高风险场景下才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
+    "17. 不要用“如果你要，我可以继续……”作为收尾；如果下一步低风险且明显属于用户请求范围，就先做完再最终汇报。",
   ].join("\n");
 }
 
@@ -314,6 +316,7 @@ function renderCursorWorkflow(input: {
   const initCommand = `node "${toPosixPath(input.globalScriptFile)}" init --root <project_root> --project <name> --owner <owner> --project-path <project_root> [--project-doc-path <relative_md_path>]`;
   const captureCommand = `node "${toPosixPath(input.globalScriptFile)}" capture --root <project_root> ...`;
   const buildCommand = `node "${toPosixPath(input.globalScriptFile)}" build --root <project_root> --project <name> --lang zh`;
+  const updateCommand = `node "${toPosixPath(input.globalScriptFile)}" update --target-dir <project_root> --agent <codex|cursor|claude-code>`;
   const globalDoc = "~/.codemem/projects/<project_state_key>/docs/global/global-standard.md";
   const projectDoc = "docs/spec/project-standard.<project_name>.md";
   const conflictsDoc = "~/.codemem/projects/<project_state_key>/docs/reports/standards-conflicts.md";
@@ -335,8 +338,9 @@ function renderCursorWorkflow(input: {
     `12. 使用 \`${captureCommand}\` 逐条追加规范。`,
     "13. 只要本轮新增了规范、项目状态发生变化、或用户要求初始化/更新规范文档，就在同一轮里继续生成规范文档。",
     `14. 直接执行 \`${buildCommand}\`，除非仍存在高风险决策需要确认。`,
-    "15. 只有在高风险场景下才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
-    "16. 不要用“如果你要，我可以继续……”作为收尾；如果下一步低风险且明显属于用户请求范围，就先做完再最终汇报。",
+    `15. 当用户要求更新 codemem skill、刷新 codemem 版本或安装新版时，优先执行 \`${updateCommand}\`；如果用户提供 portable tgz，加上 \`--portable <tgz>\`；如果用户提供 codemem 源码目录，加上 \`--source-dir <codemem_repo>\`。`,
+    "16. 只有在高风险场景下才停下来确认：项目身份不确定、可能覆盖重要内容、或存在无法安全自动决策的规范冲突。",
+    "17. 不要用“如果你要，我可以继续……”作为收尾；如果下一步低风险且明显属于用户请求范围，就先做完再最终汇报。",
   ].join("\n");
 }
 
