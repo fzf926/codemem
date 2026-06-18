@@ -147,7 +147,7 @@ function getGlobalStandardFile(rootDir) {
 }
 
 function getDefaultProjectStandardRelativePath(project) {
-  return `.codemem/docs/projects/project-standard.${project}.md`;
+  return `docs/spec/project-standard.${project}.md`;
 }
 
 function normalizeProjectDocPath(value) {

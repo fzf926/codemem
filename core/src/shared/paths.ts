@@ -92,7 +92,7 @@ export function getGlobalStandardFile(rootDir: string): string {
 }
 
 export function getDefaultProjectStandardRelativePath(project: string): string {
-  return `.codemem/docs/projects/project-standard.${project}.md`;
+  return `docs/spec/project-standard.${project}.md`;
 }
 
 export function normalizeProjectDocPath(value: string | undefined): string | undefined {

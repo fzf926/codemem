@@ -240,7 +240,7 @@ bun run core/src/cli/build.ts --root . --project <project_name> --lang zh
 生成产物位于 `.codemem/docs/`：
 
 - `docs/global/global-standard.md`
-- `docs/projects/project-standard.<project_name>.md`
+- `docs/spec/project-standard.<project_name>.md`
 - `docs/reports/standards-conflicts.md`
 
 ### 第四步：生成分享安装包

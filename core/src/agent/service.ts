@@ -267,7 +267,7 @@ function renderSharedWorkflow(input: { scriptFile: string; lang: string }): stri
   const captureCommand = `node "${toPosixPath(input.scriptFile)}" capture`;
   const buildCommand = `node "${toPosixPath(input.scriptFile)}" build`;
   const globalDoc = ".codemem/docs/global/global-standard.md";
-  const projectDoc = ".codemem/docs/projects/project-standard.<project_name>.md";
+  const projectDoc = "docs/spec/project-standard.<project_name>.md";
   const conflictsDoc = ".codemem/docs/reports/standards-conflicts.md";
 
   return [
@@ -300,7 +300,7 @@ function renderCursorWorkflow(input: {
   const captureCommand = `node "${toPosixPath(input.globalScriptFile)}" capture --root <project_root> ...`;
   const buildCommand = `node "${toPosixPath(input.globalScriptFile)}" build --root <project_root> --project <name> --lang zh`;
   const globalDoc = ".codemem/docs/global/global-standard.md";
-  const projectDoc = ".codemem/docs/projects/project-standard.<project_name>.md";
+  const projectDoc = "docs/spec/project-standard.<project_name>.md";
   const conflictsDoc = ".codemem/docs/reports/standards-conflicts.md";
 
   return [

@@ -31,7 +31,7 @@ flowchart TD
   E --> C
   C --> F["codemem build"]
   F --> G["global-standard.md"]
-  F --> H["project-standard.<project>.md"]
+  F --> H["docs/spec/project-standard.<project>.md"]
   F --> I["standards-conflicts.md"]
   G --> J["Codex / Cursor / Claude Code"]
   H --> J
@@ -170,7 +170,7 @@ bun run core/src/cli/upgrade.ts --root . --agent cursor --target-dir <target_pro
 目标项目中主要生成：
 
 - `.codemem/docs/global/global-standard.md`
-- `.codemem/docs/projects/project-standard.<project_name>.md`
+- `docs/spec/project-standard.<project_name>.md`
 - `.codemem/docs/reports/standards-conflicts.md`
 - `.codemem/_system/logs/standards/<project_name>.jsonl`
 - `.codemem-project.json`

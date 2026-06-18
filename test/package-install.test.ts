@@ -548,7 +548,7 @@ describe("package and install flow", () => {
       buildSourcePackage(sourceRoot, "1.0.0");
 
       expect(existsSync(join(sourceRoot, ".codemem", "docs", "global", "global-standard.md"))).toBe(true);
-      expect(existsSync(join(sourceRoot, ".codemem", "docs", "projects", "project-standard.source-project.md"))).toBe(true);
+      expect(existsSync(join(sourceRoot, "docs", "spec", "project-standard.source-project.md"))).toBe(true);
       expect(existsSync(join(sourceRoot, ".codemem", "docs", "reports", "standards-conflicts.md"))).toBe(true);
       expect(existsSync(join(sourceRoot, ".codemem", "_system", "logs", "standards", "source-project.jsonl"))).toBe(true);
       expect(existsSync(join(sourceRoot, ".codemem", "_system", "meta", "standards", "source-project.env"))).toBe(true);
@@ -600,7 +600,7 @@ describe("project init guidance", () => {
       const customDoc = join(root, "docs", "standards", "current-project.md");
       expect(existsSync(customDoc)).toBe(true);
       expect(readFileSync(customDoc, "utf8")).toContain("策略分发");
-      expect(existsSync(join(root, ".codemem", "docs", "projects", "project-standard.custom-doc-project.md"))).toBe(false);
+      expect(existsSync(join(root, "docs", "spec", "project-standard.custom-doc-project.md"))).toBe(false);
       expect(readFileSync(initialized.agentsFile, "utf8")).toContain("docs/standards/current-project.md");
       expect(readFileSync(initialized.cursorRuleFile, "utf8")).toContain("docs/standards/current-project.md");
       expect(readFileSync(join(root, ".codemem-project.json"), "utf8")).toContain("\"projectDocPath\": \"docs/standards/current-project.md\"");

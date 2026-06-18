@@ -85,7 +85,7 @@ describe("skill project runtime", () => {
 
       expect(build.status).toBe(0);
       expect(build.stdout).toContain("Generated:");
-      const projectDoc = readFileSync(join(rootDir, ".codemem", "docs", "projects", "project-standard.runtime-project.md"), "utf8");
+      const projectDoc = readFileSync(join(rootDir, "docs", "spec", "project-standard.runtime-project.md"), "utf8");
       const globalDoc = readFileSync(join(rootDir, ".codemem", "docs", "global", "global-standard.md"), "utf8");
       const conflictsDoc = readFileSync(join(rootDir, ".codemem", "docs", "reports", "standards-conflicts.md"), "utf8");
       expect(projectDoc).toContain("MQ 消费策略分发");
@@ -159,7 +159,7 @@ describe("skill project runtime", () => {
       expect(build.status).toBe(0);
       const projectDoc = readFileSync(join(rootDir, "docs", "engineering", "codemem-project.md"), "utf8");
       expect(projectDoc).toContain("自定义输出路径");
-      expect(existsSync(join(rootDir, ".codemem", "docs", "projects", "project-standard.runtime-doc-path.md"))).toBe(false);
+      expect(existsSync(join(rootDir, "docs", "spec", "project-standard.runtime-doc-path.md"))).toBe(false);
     } finally {
       rmSync(rootDir, { recursive: true, force: true });
     }

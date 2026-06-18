@@ -39,7 +39,7 @@ describe("agent install and export", () => {
       expect(content).toContain("不要求用户显式提到 codemem");
       expect(content).toContain("不要把架构或重构产生的规范记录当成代码改完后的可选后续事项");
       expect(content).toContain(".codemem/docs/global/global-standard.md");
-      expect(content).toContain(".codemem/docs/projects/project-standard.<project_name>.md");
+      expect(content).toContain("docs/spec/project-standard.<project_name>.md");
       expect(content).toContain("优先读取已有规范文档");
       expect(content).toContain("默认把请求范围内显然该做的事情一轮做完");
       expect(content).toContain("只有高风险决策才停下来确认");

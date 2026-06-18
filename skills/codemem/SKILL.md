@@ -95,7 +95,7 @@ codemem build --project <project_name> --lang zh
 Outputs:
 
 - `.codemem/docs/global/global-standard.md`
-- `.codemem/docs/projects/project-standard.<project_name>.md or configured --project-doc-path`
+- `docs/spec/project-standard.<project_name>.md or configured --project-doc-path`
 - `.codemem/docs/reports/standards-conflicts.md`
 
 ### Step 4: Package the shared standard
